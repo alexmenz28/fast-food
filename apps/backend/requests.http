@@ -1,0 +1,53 @@
+@baseUrl = http://localhost:3000
+
+### Salud API
+GET {{baseUrl}}/health
+
+### Salud DB
+GET {{baseUrl}}/health/db
+
+### Listar productos
+GET {{baseUrl}}/products
+
+### Crear producto
+POST {{baseUrl}}/products
+Content-Type: application/json
+
+{
+  "code": "P100",
+  "name": "Pan para lomito",
+  "type": "FOOD",
+  "unitMeasure": "unidad",
+  "isActive": true
+}
+
+### Listar vendedores
+GET {{baseUrl}}/sellers
+
+### Crear vendedor
+POST {{baseUrl}}/sellers
+Content-Type: application/json
+
+{
+  "fullName": "Ana Gutierrez",
+  "documentId": "5124789",
+  "phone": "70991122",
+  "isActive": true
+}
+
+### Listar unidades moviles
+GET {{baseUrl}}/mobile-units
+
+### Crear unidad movil (actualiza sellerId con uno real)
+POST {{baseUrl}}/mobile-units
+Content-Type: application/json
+
+{
+  "code": "UM-10",
+  "zone": "Centro",
+  "latitude": -17.7862,
+  "longitude": -63.1817,
+  "status": "ACTIVE",
+  "sellerId": "REEMPLAZAR_POR_CUID_REAL",
+  "isActive": true
+}

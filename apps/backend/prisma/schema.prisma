@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProductType {
+  FOOD
+  DRINK
+  SUPPLY
+}
+
+enum UnitStatus {
+  ACTIVE
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  code        String      @unique
+  name        String
+  type        ProductType
+  unitMeasure String
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Seller {
+  id         String      @id @default(cuid())
+  fullName   String
+  documentId String      @unique
+  phone      String
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  mobileUnit MobileUnit?
+}
+
+model MobileUnit {
+  id         String     @id @default(cuid())
+  code       String     @unique
+  zone       String
+  latitude   Decimal?   @db.Decimal(10, 7)
+  longitude  Decimal?   @db.Decimal(10, 7)
+  status     UnitStatus @default(ACTIVE)
+  isActive   Boolean    @default(true)
+  sellerId   String?    @unique
+  seller     Seller?    @relation(fields: [sellerId], references: [id])
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
