@@ -36,7 +36,13 @@ npm run db:seed
 
 ## Desarrollo
 
-Dos terminales:
+**Backend y frontend a la vez** (recomendado):
+
+```bash
+npm run dev:all
+```
+
+O en dos terminales por separado:
 
 ```bash
 npm run dev:backend
