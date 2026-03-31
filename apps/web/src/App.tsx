@@ -13,58 +13,84 @@ import {
 import { useTheme } from "./theme";
 import "./App.css";
 
-type Product = {
+type Producto = {
   id: string;
-  code: string;
-  name: string;
-  type: "FOOD" | "DRINK" | "SUPPLY";
-  unitMeasure: string;
-  isActive: boolean;
+  codigo: string;
+  nombre: string;
+  tipo: "ALIMENTO" | "BEBIDA" | "INSUMO";
+  unidadMedida: string;
+  activo: boolean;
 };
 
-type Seller = {
+type Vendedor = {
   id: string;
-  fullName: string;
-  documentId: string;
-  phone: string;
-  isActive: boolean;
+  nombreCompleto: string;
+  documento: string;
+  telefono: string;
+  activo: boolean;
 };
 
-type MobileUnit = {
+type UnidadMovil = {
   id: string;
-  code: string;
-  zone: string;
-  status: "ACTIVE" | "MAINTENANCE" | "OUT_OF_SERVICE";
-  sellerId: string | null;
-  isActive: boolean;
+  codigo: string;
+  zona: string;
+  estado: "ACTIVA" | "MANTENIMIENTO" | "FUERA_DE_SERVICIO";
+  idVendedor: string | null;
+  activo: boolean;
 };
+
+type SesionMock = {
+  nombre: string;
+  rol: "ADMINISTRADOR" | "ALMACEN" | "SUPERVISOR";
+};
+
+type Paginacion = {
+  pagina: number;
+  limite: number;
+  total: number;
+  totalPaginas: number;
+};
+
+type ModalEdicion =
+  | { kind: "producto"; item: Producto }
+  | { kind: "vendedor"; item: Vendedor }
+  | { kind: "unidad"; item: UnidadMovil }
+  | null;
+
+type ModalEliminacion =
+  | { kind: "producto"; id: string; etiqueta: string }
+  | { kind: "vendedor"; id: string; etiqueta: string }
+  | { kind: "unidad"; id: string; etiqueta: string }
+  | null;
 
 const API_URL = "http://localhost:3000";
 const SESSION_KEY = "fastfood_mock_session";
 const SIDEBAR_KEY = "fastfood_sidebar_collapsed";
+const LIMITE_PAGINA = 8;
 
-type MockSession = {
-  name: string;
-  role: "ADMINISTRADOR" | "ALMACEN" | "SUPERVISOR";
-};
-
-function roleLabel(role: MockSession["role"]) {
-  if (role === "ADMINISTRADOR") return "Administrador";
-  if (role === "ALMACEN") return "Encargado de almacen";
+function etiquetaRol(rol: SesionMock["rol"]) {
+  if (rol === "ADMINISTRADOR") return "Administrador";
+  if (rol === "ALMACEN") return "Encargado de almacen";
   return "Supervisor de operaciones";
 }
 
-type EditModalState =
-  | { kind: "product"; item: Product }
-  | { kind: "seller"; item: Seller }
-  | { kind: "unit"; item: MobileUnit }
-  | null;
+function etiquetaTipoProducto(tipo: Producto["tipo"]) {
+  if (tipo === "ALIMENTO") return "Alimento";
+  if (tipo === "BEBIDA") return "Bebida";
+  return "Insumo";
+}
+
+function etiquetaEstadoUnidad(estado: UnidadMovil["estado"]) {
+  if (estado === "ACTIVA") return "Activa";
+  if (estado === "MANTENIMIENTO") return "Mantenimiento";
+  return "Fuera de servicio";
+}
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/*" element={<ProtectedApp />} />
+      <Route path="/*" element={<PanelProtegido />} />
     </Routes>
   );
 }
@@ -72,26 +98,24 @@ function App() {
 function LoginPage() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const [message, setMessage] = useState("");
+  const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
-    if (saved) {
-      navigate("/resumen", { replace: true });
-    }
+    if (saved) navigate("/resumen", { replace: true });
   }, [navigate]);
 
-  function handleMockLogin(event: FormEvent<HTMLFormElement>) {
+  function iniciarSesionMock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const name = String(form.get("name") ?? "").trim();
-    const role = String(form.get("role") ?? "ALMACEN") as MockSession["role"];
-    if (!name) {
-      setMessage("Ingresa un nombre para continuar.");
+    const nombre = String(form.get("nombre") ?? "").trim();
+    const rol = String(form.get("rol") ?? "ALMACEN") as SesionMock["rol"];
+    if (!nombre) {
+      setMensaje("Ingresa un nombre para continuar.");
       return;
     }
-    const mockSession: MockSession = { name, role };
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(mockSession));
+    const sesion: SesionMock = { nombre, rol };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(sesion));
     navigate("/resumen", { replace: true });
   }
 
@@ -115,89 +139,116 @@ function LoginPage() {
           </div>
         </div>
         <p className="auth-lead">Sistema de gestion de abastecimiento</p>
-        <form onSubmit={handleMockLogin}>
-          <input name="name" placeholder="Usuario (mock)" required />
-          <input name="password" type="password" placeholder="Contrasena (mock)" required />
-          <select name="role" defaultValue="ALMACEN">
+        <form onSubmit={iniciarSesionMock}>
+          <input name="nombre" placeholder="Usuario" required />
+          <input name="password" type="password" placeholder="Contrasena" required />
+          <select name="rol" defaultValue="ALMACEN">
             <option value="ADMINISTRADOR">Administrador</option>
             <option value="ALMACEN">Encargado de almacen</option>
             <option value="SUPERVISOR">Supervisor</option>
           </select>
-          <button type="submit">Ingresar (mock)</button>
+          <button type="submit">Ingresar</button>
         </form>
-        <small>Demo academica: login visual sin autenticacion real.</small>
-        {message ? <p className="message">{message}</p> : null}
+        <small>Entorno de demostracion para validacion funcional.</small>
+        {mensaje ? <p className="message">{mensaje}</p> : null}
       </section>
     </main>
   );
 }
 
-function ProtectedApp() {
+function PanelProtegido() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [sellers, setSellers] = useState<Seller[]>([]);
-  const [mobileUnits, setMobileUnits] = useState<MobileUnit[]>([]);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [session, setSession] = useState<MockSession | null>(() => {
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  const [unidades, setUnidades] = useState<UnidadMovil[]>([]);
+  const [mensaje, setMensaje] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [sesion, setSesion] = useState<SesionMock | null>(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
-    return saved ? (JSON.parse(saved) as MockSession) : null;
+    return saved ? (JSON.parse(saved) as SesionMock) : null;
   });
-  const [now, setNow] = useState(new Date());
-  const [editModal, setEditModal] = useState<EditModalState>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+  const [ahora, setAhora] = useState(new Date());
+  const [modalEdicion, setModalEdicion] = useState<ModalEdicion>(null);
+  const [modalEliminacion, setModalEliminacion] = useState<ModalEliminacion>(null);
+  const [menuColapsado, setMenuColapsado] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem(SIDEBAR_KEY) === "1";
   });
+  const [paginacionProductos, setPaginacionProductos] = useState<Paginacion>({
+    pagina: 1,
+    limite: LIMITE_PAGINA,
+    total: 0,
+    totalPaginas: 1,
+  });
+  const [paginacionVendedores, setPaginacionVendedores] = useState<Paginacion>({
+    pagina: 1,
+    limite: LIMITE_PAGINA,
+    total: 0,
+    totalPaginas: 1,
+  });
+  const [paginacionUnidades, setPaginacionUnidades] = useState<Paginacion>({
+    pagina: 1,
+    limite: LIMITE_PAGINA,
+    total: 0,
+    totalPaginas: 1,
+  });
 
-  function toggleSidebar() {
-    setSidebarCollapsed((prev) => {
+  useEffect(() => {
+    if (!sesion) navigate("/login", { replace: true });
+  }, [navigate, sesion]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setAhora(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function cargarDatos() {
+    setCargando(true);
+    try {
+      const qProd = `?pagina=${paginacionProductos.pagina}&limite=${paginacionProductos.limite}`;
+      const qVend = `?pagina=${paginacionVendedores.pagina}&limite=${paginacionVendedores.limite}`;
+      const qUni = `?pagina=${paginacionUnidades.pagina}&limite=${paginacionUnidades.limite}`;
+      const [rProd, rVend, rUni] = await Promise.all([
+        fetch(`${API_URL}/productos${qProd}`),
+        fetch(`${API_URL}/vendedores${qVend}`),
+        fetch(`${API_URL}/unidades-moviles${qUni}`),
+      ]);
+      const jProd = await rProd.json();
+      const jVend = await rVend.json();
+      const jUni = await rUni.json();
+      setProductos(jProd.data ?? []);
+      setVendedores(jVend.data ?? []);
+      setUnidades(jUni.data ?? []);
+      if (jProd.paginacion) setPaginacionProductos(jProd.paginacion);
+      if (jVend.paginacion) setPaginacionVendedores(jVend.paginacion);
+      if (jUni.paginacion) setPaginacionUnidades(jUni.paginacion);
+    } catch {
+      setMensaje("No se pudo cargar datos. Verifica que backend este activo.");
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  useEffect(() => {
+    if (sesion) cargarDatos();
+  }, [sesion, paginacionProductos.pagina, paginacionVendedores.pagina, paginacionUnidades.pagina]);
+
+  function alternarMenu() {
+    setMenuColapsado((prev) => {
       const next = !prev;
       localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
       return next;
     });
   }
 
-  useEffect(() => {
-    if (!session) {
-      navigate("/login", { replace: true });
-    }
-  }, [navigate, session]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  async function loadData() {
-    setLoading(true);
-    try {
-      const [productsRes, sellersRes, unitsRes] = await Promise.all([
-        fetch(`${API_URL}/products`),
-        fetch(`${API_URL}/sellers`),
-        fetch(`${API_URL}/mobile-units`),
-      ]);
-      const productsJson = await productsRes.json();
-      const sellersJson = await sellersRes.json();
-      const unitsJson = await unitsRes.json();
-      setProducts(productsJson.data ?? []);
-      setSellers(sellersJson.data ?? []);
-      setMobileUnits(unitsJson.data ?? []);
-    } catch {
-      setMessage("No se pudo cargar datos. Verifica que backend este activo.");
-    } finally {
-      setLoading(false);
-    }
+  function cerrarSesion() {
+    sessionStorage.removeItem(SESSION_KEY);
+    setSesion(null);
+    navigate("/login", { replace: true });
   }
 
-  useEffect(() => {
-    if (session) {
-      loadData();
-    }
-  }, [session]);
-
-  async function apiRequest(path: string, method: string, payload?: unknown) {
+  async function pedir(path: string, method: string, payload?: unknown) {
     const res = await fetch(`${API_URL}${path}`, {
       method,
       headers: { "Content-Type": "application/json" },
@@ -206,145 +257,166 @@ function ProtectedApp() {
     return res.json();
   }
 
-  async function createProduct(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
+  async function crearProducto(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
     const payload = {
-      code: String(form.get("code") ?? ""),
-      name: String(form.get("name") ?? ""),
-      type: String(form.get("type") ?? "FOOD"),
-      unitMeasure: String(form.get("unitMeasure") ?? ""),
-      isActive: true,
+      codigo: String(form.get("codigo") ?? ""),
+      nombre: String(form.get("nombre") ?? ""),
+      tipo: String(form.get("tipo") ?? "ALIMENTO"),
+      unidadMedida: String(form.get("unidadMedida") ?? ""),
+      activo: true,
     };
-    const json = await apiRequest("/products", "POST", payload);
-    setMessage(json.ok ? "Producto creado." : `Error: ${json.error}`);
+    const json = await pedir("/productos", "POST", payload);
+    setMensaje(json.ok ? "Producto creado." : `Error: ${json.error}`);
     if (json.ok) {
-      event.currentTarget.reset();
-      loadData();
+      e.currentTarget.reset();
+      cargarDatos();
     }
   }
 
-  async function createSeller(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
+  async function crearVendedor(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
     const payload = {
-      fullName: String(form.get("fullName") ?? ""),
-      documentId: String(form.get("documentId") ?? ""),
-      phone: String(form.get("phone") ?? ""),
-      isActive: true,
+      nombreCompleto: String(form.get("nombreCompleto") ?? ""),
+      documento: String(form.get("documento") ?? ""),
+      telefono: String(form.get("telefono") ?? ""),
+      activo: true,
     };
-    const json = await apiRequest("/sellers", "POST", payload);
-    setMessage(json.ok ? "Vendedor creado." : `Error: ${json.error}`);
+    const json = await pedir("/vendedores", "POST", payload);
+    setMensaje(json.ok ? "Vendedor creado." : `Error: ${json.error}`);
     if (json.ok) {
-      event.currentTarget.reset();
-      loadData();
+      e.currentTarget.reset();
+      cargarDatos();
     }
   }
 
-  async function createMobileUnit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const sellerId = String(form.get("sellerId") ?? "");
+  async function crearUnidad(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const idVendedor = String(form.get("idVendedor") ?? "");
     const payload = {
-      code: String(form.get("code") ?? ""),
-      zone: String(form.get("zone") ?? ""),
-      status: String(form.get("status") ?? "ACTIVE"),
-      sellerId: sellerId ? sellerId : null,
-      isActive: true,
+      codigo: String(form.get("codigo") ?? ""),
+      zona: String(form.get("zona") ?? ""),
+      estado: String(form.get("estado") ?? "ACTIVA"),
+      idVendedor: idVendedor ? idVendedor : null,
+      activo: true,
     };
-    const json = await apiRequest("/mobile-units", "POST", payload);
-    setMessage(json.ok ? "Unidad movil creada." : `Error: ${json.error}`);
+    const json = await pedir("/unidades-moviles", "POST", payload);
+    setMensaje(json.ok ? "Unidad movil creada." : `Error: ${json.error}`);
     if (json.ok) {
-      event.currentTarget.reset();
-      loadData();
+      e.currentTarget.reset();
+      cargarDatos();
     }
   }
 
-  async function deleteProduct(id: string) {
-    if (!window.confirm("¿Eliminar producto?")) return;
-    const json = await apiRequest(`/products/${id}`, "DELETE");
-    setMessage(json.ok ? "Producto eliminado." : `Error: ${json.error}`);
-    if (json.ok) loadData();
+  async function eliminarProducto(id: string) {
+    const json = await pedir(`/productos/${id}`, "DELETE");
+    setMensaje(json.ok ? "Producto eliminado." : `Error: ${json.error}`);
+    if (json.ok) cargarDatos();
   }
 
-  async function deleteSeller(id: string) {
-    if (!window.confirm("¿Eliminar vendedor?")) return;
-    const json = await apiRequest(`/sellers/${id}`, "DELETE");
-    setMessage(json.ok ? "Vendedor eliminado." : `Error: ${json.error}`);
-    if (json.ok) loadData();
+  async function eliminarVendedor(id: string) {
+    const json = await pedir(`/vendedores/${id}`, "DELETE");
+    setMensaje(json.ok ? "Vendedor eliminado." : `Error: ${json.error}`);
+    if (json.ok) cargarDatos();
   }
 
-  async function deleteMobileUnit(id: string) {
-    if (!window.confirm("¿Eliminar unidad movil?")) return;
-    const json = await apiRequest(`/mobile-units/${id}`, "DELETE");
-    setMessage(json.ok ? "Unidad movil eliminada." : `Error: ${json.error}`);
-    if (json.ok) loadData();
+  async function eliminarUnidad(id: string) {
+    const json = await pedir(`/unidades-moviles/${id}`, "DELETE");
+    setMensaje(json.ok ? "Unidad movil eliminada." : `Error: ${json.error}`);
+    if (json.ok) cargarDatos();
   }
 
-  function logout() {
-    sessionStorage.removeItem(SESSION_KEY);
-    setSession(null);
-    navigate("/login", { replace: true });
-  }
-
-  if (!session) {
-    return <Navigate to="/login" replace />;
-  }
-
-  const shiftLabel = useMemo(() => {
-    const h = now.getHours();
-    if (h >= 18 || h < 3) return "Turno nocturno activo";
-    return "Fuera de turno operativo";
-  }, [now]);
-
-  async function submitEdit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!editModal) return;
-    const form = new FormData(event.currentTarget);
+  async function guardarEdicion(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!modalEdicion) return;
+    const form = new FormData(e.currentTarget);
     let json: { ok: boolean; error?: string };
 
-    if (editModal.kind === "product") {
-      json = await apiRequest(`/products/${editModal.item.id}`, "PUT", {
-        code: String(form.get("code") ?? ""),
-        name: String(form.get("name") ?? ""),
-        type: String(form.get("type") ?? "FOOD"),
-        unitMeasure: String(form.get("unitMeasure") ?? ""),
-        isActive: form.get("isActive") === "on",
+    if (modalEdicion.kind === "producto") {
+      json = await pedir(`/productos/${modalEdicion.item.id}`, "PUT", {
+        codigo: String(form.get("codigo") ?? ""),
+        nombre: String(form.get("nombre") ?? ""),
+        tipo: String(form.get("tipo") ?? "ALIMENTO"),
+        unidadMedida: String(form.get("unidadMedida") ?? ""),
+        activo: form.get("activo") === "on",
       });
-    } else if (editModal.kind === "seller") {
-      json = await apiRequest(`/sellers/${editModal.item.id}`, "PUT", {
-        fullName: String(form.get("fullName") ?? ""),
-        documentId: String(form.get("documentId") ?? ""),
-        phone: String(form.get("phone") ?? ""),
-        isActive: form.get("isActive") === "on",
+    } else if (modalEdicion.kind === "vendedor") {
+      json = await pedir(`/vendedores/${modalEdicion.item.id}`, "PUT", {
+        nombreCompleto: String(form.get("nombreCompleto") ?? ""),
+        documento: String(form.get("documento") ?? ""),
+        telefono: String(form.get("telefono") ?? ""),
+        activo: form.get("activo") === "on",
       });
     } else {
-      const sellerId = String(form.get("sellerId") ?? "");
-      json = await apiRequest(`/mobile-units/${editModal.item.id}`, "PUT", {
-        code: String(form.get("code") ?? ""),
-        zone: String(form.get("zone") ?? ""),
-        status: String(form.get("status") ?? "ACTIVE"),
-        sellerId: sellerId ? sellerId : null,
-        isActive: form.get("isActive") === "on",
+      const idVendedor = String(form.get("idVendedor") ?? "");
+      json = await pedir(`/unidades-moviles/${modalEdicion.item.id}`, "PUT", {
+        codigo: String(form.get("codigo") ?? ""),
+        zona: String(form.get("zona") ?? ""),
+        estado: String(form.get("estado") ?? "ACTIVA"),
+        idVendedor: idVendedor ? idVendedor : null,
+        activo: form.get("activo") === "on",
       });
     }
 
-    setMessage(json.ok ? "Registro actualizado." : `Error: ${json.error}`);
+    setMensaje(json.ok ? "Registro actualizado." : `Error: ${json.error}`);
     if (json.ok) {
-      setEditModal(null);
-      loadData();
+      setModalEdicion(null);
+      cargarDatos();
     }
   }
 
+  async function confirmarEliminacion() {
+    if (!modalEliminacion) return;
+    if (modalEliminacion.kind === "producto") await eliminarProducto(modalEliminacion.id);
+    if (modalEliminacion.kind === "vendedor") await eliminarVendedor(modalEliminacion.id);
+    if (modalEliminacion.kind === "unidad") await eliminarUnidad(modalEliminacion.id);
+    setModalEliminacion(null);
+  }
+
+  const textoTurno = useMemo(() => {
+    const h = ahora.getHours();
+    return h >= 18 || h < 3 ? "Turno nocturno activo" : "Fuera de turno operativo";
+  }, [ahora]);
+
+  function cambiarPagina(
+    modulo: "productos" | "vendedores" | "unidades",
+    direccion: "anterior" | "siguiente",
+  ) {
+    const delta = direccion === "siguiente" ? 1 : -1;
+    if (modulo === "productos") {
+      setPaginacionProductos((prev) => ({
+        ...prev,
+        pagina: Math.max(1, Math.min(prev.totalPaginas, prev.pagina + delta)),
+      }));
+      return;
+    }
+    if (modulo === "vendedores") {
+      setPaginacionVendedores((prev) => ({
+        ...prev,
+        pagina: Math.max(1, Math.min(prev.totalPaginas, prev.pagina + delta)),
+      }));
+      return;
+    }
+    setPaginacionUnidades((prev) => ({
+      ...prev,
+      pagina: Math.max(1, Math.min(prev.totalPaginas, prev.pagina + delta)),
+    }));
+  }
+
+  if (!sesion) return <Navigate to="/login" replace />;
+
   return (
-    <main className={`layout ${sidebarCollapsed ? "layout--sidebar-collapsed" : ""}`}>
+    <main className={`layout ${menuColapsado ? "layout--sidebar-collapsed" : ""}`}>
       <aside className="sidebar" aria-label="Navegacion principal">
         <div className="sidebar-top">
           <div className="sidebar-brand">
             <span className="brand-mark" title="FAST FOOD S.A.">
               FF
             </span>
-            {!sidebarCollapsed ? (
+            {!menuColapsado ? (
               <div className="sidebar-brand-text">
                 <strong>FAST FOOD</strong>
                 <span>Abastecimiento</span>
@@ -353,45 +425,29 @@ function ProtectedApp() {
           </div>
           <button
             type="button"
-            className={`sidebar-toggle ${sidebarCollapsed ? "sidebar-toggle--collapsed" : ""}`}
-            onClick={toggleSidebar}
-            title={sidebarCollapsed ? "Expandir menu" : "Contraer menu"}
-            aria-expanded={!sidebarCollapsed}
+            className={`sidebar-toggle ${menuColapsado ? "sidebar-toggle--collapsed" : ""}`}
+            onClick={alternarMenu}
+            title={menuColapsado ? "Expandir menu" : "Contraer menu"}
+            aria-expanded={!menuColapsado}
           >
             <IconPanelLeft />
           </button>
         </div>
 
         <nav className="sidebar-nav">
-          <NavLink
-            to="/resumen"
-            className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}
-            title="Resumen operativo"
-          >
+          <NavLink to="/resumen" className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}>
             <IconLayoutDashboard className="sidebar-link-icon" />
             <span className="sidebar-label">Resumen</span>
           </NavLink>
-          <NavLink
-            to="/productos"
-            className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}
-            title="Productos"
-          >
+          <NavLink to="/productos" className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}>
             <IconPackage className="sidebar-link-icon" />
             <span className="sidebar-label">Productos</span>
           </NavLink>
-          <NavLink
-            to="/vendedores"
-            className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}
-            title="Vendedores"
-          >
+          <NavLink to="/vendedores" className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}>
             <IconUsers className="sidebar-link-icon" />
             <span className="sidebar-label">Vendedores</span>
           </NavLink>
-          <NavLink
-            to="/unidades"
-            className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}
-            title="Unidades moviles"
-          >
+          <NavLink to="/unidades" className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}>
             <IconTruck className="sidebar-link-icon" />
             <span className="sidebar-label">Unidades</span>
           </NavLink>
@@ -401,13 +457,9 @@ function ProtectedApp() {
       <section className="content">
         <header className="topbar">
           <div>
-            <h2>Panel operativo</h2>
-            <p className="topbar-meta">
-              {session.name} · {roleLabel(session.role)}
-            </p>
-            <p className="topbar-time">
-              {now.toLocaleString("es-BO")} · {shiftLabel}
-            </p>
+            <h2>Centro de operaciones de abastecimiento</h2>
+            <p className="topbar-meta">{sesion.nombre} · {etiquetaRol(sesion.rol)}</p>
+            <p className="topbar-time">{ahora.toLocaleString("es-BO")} · {textoTurno}</p>
           </div>
           <div className="top-actions">
             <button
@@ -419,55 +471,29 @@ function ProtectedApp() {
             >
               {theme === "dark" ? <IconSun /> : <IconMoon />}
             </button>
-            <button className="btn-secondary" onClick={loadData} disabled={loading} type="button">
-              {loading ? "Cargando..." : "Sincronizar"}
+            <button className="btn-secondary" onClick={cargarDatos} disabled={cargando} type="button">
+              {cargando ? "Cargando..." : "Sincronizar"}
             </button>
-            <button type="button" className="danger" onClick={logout}>
+            <button type="button" className="danger" onClick={cerrarSesion}>
               Salir
             </button>
           </div>
         </header>
 
-        <section className="kpis">
-          <article>
-            <h3>{products.length}</h3>
-            <p>Productos</p>
-          </article>
-          <article>
-            <h3>{sellers.length}</h3>
-            <p>Vendedores</p>
-          </article>
-          <article>
-            <h3>{mobileUnits.length}</h3>
-            <p>Unidades moviles</p>
-          </article>
-        </section>
-
-        {message ? <p className="message">{message}</p> : null}
+        {mensaje ? <p className="message">{mensaje}</p> : null}
 
         <Routes>
           <Route
             path="/resumen"
             element={
               <article className="card">
-                <h2>Resumen operativo</h2>
-                <p className="subtle">
-                  Estado actual de catalogos base para HU1, HU2 y HU3.
-                </p>
-                <div className="summary-grid">
-                  <div>
-                    <h3>{products.filter((p) => p.isActive).length}</h3>
-                    <p>Productos activos</p>
-                  </div>
-                  <div>
-                    <h3>{sellers.filter((s) => s.isActive).length}</h3>
-                    <p>Vendedores activos</p>
-                  </div>
-                  <div>
-                    <h3>{mobileUnits.filter((u) => u.status === "ACTIVE").length}</h3>
-                    <p>Unidades activas</p>
-                  </div>
-                </div>
+                <h2>Resumen ejecutivo</h2>
+                <p className="subtle">Vista consolidada del estado de productos, personal de venta y unidades moviles.</p>
+                <section className="kpis">
+                  <article><h3>{productos.length}</h3><p>Productos registrados</p></article>
+                  <article><h3>{vendedores.length}</h3><p>Vendedores habilitados</p></article>
+                  <article><h3>{unidades.length}</h3><p>Unidades moviles operativas</p></article>
+                </section>
               </article>
             }
           />
@@ -475,50 +501,57 @@ function ProtectedApp() {
             path="/productos"
             element={
               <article className="card">
-                <h2>HU1 - Productos</h2>
-                <form onSubmit={createProduct}>
-                  <input name="code" placeholder="Codigo (P010)" required />
-                  <input name="name" placeholder="Nombre" required />
-                  <select name="type" defaultValue="FOOD">
-                    <option value="FOOD">FOOD</option>
-                    <option value="DRINK">DRINK</option>
-                    <option value="SUPPLY">SUPPLY</option>
+                <h2>Gestion de productos</h2>
+                <p className="subtle">Administra el catalogo comercial para abastecimiento y despacho.</p>
+                <form className="form-grid" onSubmit={crearProducto}>
+                  <input name="codigo" placeholder="Codigo (P010)" required />
+                  <input name="nombre" placeholder="Nombre" required />
+                  <select name="tipo" defaultValue="ALIMENTO">
+                    <option value="ALIMENTO">Alimento</option>
+                    <option value="BEBIDA">Bebida</option>
+                    <option value="INSUMO">Insumo</option>
                   </select>
-                  <input name="unitMeasure" placeholder="Unidad (kg, unidad)" required />
+                  <input name="unidadMedida" placeholder="Unidad (kg, unidad)" required />
                   <button type="submit">Crear producto</button>
                 </form>
                 <div className="table-wrap">
                   <table>
-                    <thead>
-                      <tr>
-                        <th>Codigo</th>
-                        <th>Nombre</th>
-                        <th>Tipo</th>
-                        <th>Unidad</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>Codigo</th><th>Nombre</th><th>Tipo</th><th>Unidad</th><th>Estado</th><th>Acciones</th></tr></thead>
                     <tbody>
-                      {products.map((p) => (
+                      {productos.map((p) => (
                         <tr key={p.id}>
-                          <td>{p.code}</td>
-                          <td>{p.name}</td>
-                          <td>{p.type}</td>
-                          <td>{p.unitMeasure}</td>
-                          <td>{p.isActive ? "Activo" : "Inactivo"}</td>
+                          <td>{p.codigo}</td><td>{p.nombre}</td><td>{etiquetaTipoProducto(p.tipo)}</td><td>{p.unidadMedida}</td><td>{p.activo ? "Activo" : "Inactivo"}</td>
                           <td className="row-actions">
-                            <button type="button" onClick={() => setEditModal({ kind: "product", item: p })}>
-                              Editar
-                            </button>
-                            <button type="button" className="danger" onClick={() => deleteProduct(p.id)}>
-                              Eliminar
-                            </button>
+                            <button type="button" onClick={() => setModalEdicion({ kind: "producto", item: p })}>Editar</button>
+                            <button type="button" className="danger" onClick={() => setModalEliminacion({ kind: "producto", id: p.id, etiqueta: p.nombre })}>Eliminar</button>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div className="paginacion">
+                  <span>
+                    Pagina {paginacionProductos.pagina} de {paginacionProductos.totalPaginas} · Total {paginacionProductos.total}
+                  </span>
+                  <div className="paginacion-acciones">
+                    <button
+                      type="button"
+                      className="btn-paginacion"
+                      disabled={paginacionProductos.pagina <= 1}
+                      onClick={() => cambiarPagina("productos", "anterior")}
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-paginacion"
+                      disabled={paginacionProductos.pagina >= paginacionProductos.totalPaginas}
+                      onClick={() => cambiarPagina("productos", "siguiente")}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
                 </div>
               </article>
             }
@@ -527,43 +560,52 @@ function ProtectedApp() {
             path="/vendedores"
             element={
               <article className="card">
-                <h2>HU2 - Vendedores</h2>
-                <form onSubmit={createSeller}>
-                  <input name="fullName" placeholder="Nombre completo" required />
-                  <input name="documentId" placeholder="Documento" required />
-                  <input name="phone" placeholder="Telefono" required />
+                <h2>Gestion de vendedores</h2>
+                <p className="subtle">Mantiene el personal habilitado para operar unidades moviles.</p>
+                <form className="form-grid" onSubmit={crearVendedor}>
+                  <input name="nombreCompleto" placeholder="Nombre completo" required />
+                  <input name="documento" placeholder="Documento" required />
+                  <input name="telefono" placeholder="Telefono" required />
                   <button type="submit">Crear vendedor</button>
                 </form>
                 <div className="table-wrap">
                   <table>
-                    <thead>
-                      <tr>
-                        <th>Nombre</th>
-                        <th>Documento</th>
-                        <th>Telefono</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>Nombre</th><th>Documento</th><th>Telefono</th><th>Estado</th><th>Acciones</th></tr></thead>
                     <tbody>
-                      {sellers.map((s) => (
-                        <tr key={s.id}>
-                          <td>{s.fullName}</td>
-                          <td>{s.documentId}</td>
-                          <td>{s.phone}</td>
-                          <td>{s.isActive ? "Activo" : "Inactivo"}</td>
+                      {vendedores.map((v) => (
+                        <tr key={v.id}>
+                          <td>{v.nombreCompleto}</td><td>{v.documento}</td><td>{v.telefono}</td><td>{v.activo ? "Activo" : "Inactivo"}</td>
                           <td className="row-actions">
-                            <button type="button" onClick={() => setEditModal({ kind: "seller", item: s })}>
-                              Editar
-                            </button>
-                            <button type="button" className="danger" onClick={() => deleteSeller(s.id)}>
-                              Eliminar
-                            </button>
+                            <button type="button" onClick={() => setModalEdicion({ kind: "vendedor", item: v })}>Editar</button>
+                            <button type="button" className="danger" onClick={() => setModalEliminacion({ kind: "vendedor", id: v.id, etiqueta: v.nombreCompleto })}>Eliminar</button>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div className="paginacion">
+                  <span>
+                    Pagina {paginacionVendedores.pagina} de {paginacionVendedores.totalPaginas} · Total {paginacionVendedores.total}
+                  </span>
+                  <div className="paginacion-acciones">
+                    <button
+                      type="button"
+                      className="btn-paginacion"
+                      disabled={paginacionVendedores.pagina <= 1}
+                      onClick={() => cambiarPagina("vendedores", "anterior")}
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-paginacion"
+                      disabled={paginacionVendedores.pagina >= paginacionVendedores.totalPaginas}
+                      onClick={() => cambiarPagina("vendedores", "siguiente")}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
                 </div>
               </article>
             }
@@ -572,59 +614,63 @@ function ProtectedApp() {
             path="/unidades"
             element={
               <article className="card">
-                <h2>HU3 - Unidades moviles</h2>
-                <form onSubmit={createMobileUnit}>
-                  <input name="code" placeholder="Codigo (UM-03)" required />
-                  <input name="zone" placeholder="Zona" required />
-                  <select name="status" defaultValue="ACTIVE">
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="MAINTENANCE">MAINTENANCE</option>
-                    <option value="OUT_OF_SERVICE">OUT_OF_SERVICE</option>
+                <h2>Gestion de unidades moviles</h2>
+                <p className="subtle">Controla unidades activas, zonas de cobertura y asignaciones de vendedor.</p>
+                <form className="form-grid" onSubmit={crearUnidad}>
+                  <input name="codigo" placeholder="Codigo (UM-03)" required />
+                  <input name="zona" placeholder="Zona" required />
+                  <select name="estado" defaultValue="ACTIVA">
+                    <option value="ACTIVA">Activa</option>
+                    <option value="MANTENIMIENTO">Mantenimiento</option>
+                    <option value="FUERA_DE_SERVICIO">Fuera de servicio</option>
                   </select>
-                  <select name="sellerId" defaultValue="">
+                  <select name="idVendedor" defaultValue="">
                     <option value="">Sin vendedor</option>
-                    {sellers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.fullName}
-                      </option>
+                    {vendedores.map((v) => (
+                      <option key={v.id} value={v.id}>{v.nombreCompleto}</option>
                     ))}
                   </select>
                   <button type="submit">Crear unidad</button>
                 </form>
                 <div className="table-wrap">
                   <table>
-                    <thead>
-                      <tr>
-                        <th>Codigo</th>
-                        <th>Zona</th>
-                        <th>Estado</th>
-                        <th>Vendedor</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>Codigo</th><th>Zona</th><th>Estado</th><th>Vendedor</th><th>Acciones</th></tr></thead>
                     <tbody>
-                      {mobileUnits.map((u) => (
+                      {unidades.map((u) => (
                         <tr key={u.id}>
-                          <td>{u.code}</td>
-                          <td>{u.zone}</td>
-                          <td>{u.status}</td>
-                          <td>
-                            {u.sellerId
-                              ? sellers.find((s) => s.id === u.sellerId)?.fullName ?? "Asignado"
-                              : "Sin vendedor"}
-                          </td>
+                          <td>{u.codigo}</td><td>{u.zona}</td><td>{etiquetaEstadoUnidad(u.estado)}</td>
+                          <td>{u.idVendedor ? vendedores.find((v) => v.id === u.idVendedor)?.nombreCompleto ?? "Asignado" : "Sin vendedor"}</td>
                           <td className="row-actions">
-                            <button type="button" onClick={() => setEditModal({ kind: "unit", item: u })}>
-                              Editar
-                            </button>
-                            <button type="button" className="danger" onClick={() => deleteMobileUnit(u.id)}>
-                              Eliminar
-                            </button>
+                            <button type="button" onClick={() => setModalEdicion({ kind: "unidad", item: u })}>Editar</button>
+                            <button type="button" className="danger" onClick={() => setModalEliminacion({ kind: "unidad", id: u.id, etiqueta: u.codigo })}>Eliminar</button>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div className="paginacion">
+                  <span>
+                    Pagina {paginacionUnidades.pagina} de {paginacionUnidades.totalPaginas} · Total {paginacionUnidades.total}
+                  </span>
+                  <div className="paginacion-acciones">
+                    <button
+                      type="button"
+                      className="btn-paginacion"
+                      disabled={paginacionUnidades.pagina <= 1}
+                      onClick={() => cambiarPagina("unidades", "anterior")}
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-paginacion"
+                      disabled={paginacionUnidades.pagina >= paginacionUnidades.totalPaginas}
+                      onClick={() => cambiarPagina("unidades", "siguiente")}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
                 </div>
               </article>
             }
@@ -633,71 +679,92 @@ function ProtectedApp() {
         </Routes>
       </section>
 
-      {editModal ? (
-        <section className="modal-overlay" onClick={() => setEditModal(null)}>
+      {modalEdicion ? (
+        <section className="modal-overlay" onClick={() => setModalEdicion(null)}>
           <article className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Editar registro</h3>
-            <form onSubmit={submitEdit}>
-              {editModal.kind === "product" ? (
-                <>
-                  <input name="code" defaultValue={editModal.item.code} required />
-                  <input name="name" defaultValue={editModal.item.name} required />
-                  <select name="type" defaultValue={editModal.item.type}>
-                    <option value="FOOD">FOOD</option>
-                    <option value="DRINK">DRINK</option>
-                    <option value="SUPPLY">SUPPLY</option>
+            <header className="modal-header">
+              <h3>
+                {modalEdicion.kind === "producto" && "Editar producto"}
+                {modalEdicion.kind === "vendedor" && "Editar vendedor"}
+                {modalEdicion.kind === "unidad" && "Editar unidad movil"}
+              </h3>
+              <p className="modal-subtitle">Actualiza la informacion y guarda los cambios.</p>
+            </header>
+            <form onSubmit={guardarEdicion}>
+              <div className="modal-body">
+                {modalEdicion.kind === "producto" ? (
+                  <>
+                  <input name="codigo" defaultValue={modalEdicion.item.codigo} required />
+                  <input name="nombre" defaultValue={modalEdicion.item.nombre} required />
+                  <select name="tipo" defaultValue={modalEdicion.item.tipo}>
+                    <option value="ALIMENTO">Alimento</option>
+                    <option value="BEBIDA">Bebida</option>
+                    <option value="INSUMO">Insumo</option>
                   </select>
-                  <input name="unitMeasure" defaultValue={editModal.item.unitMeasure} required />
-                  <label className="check">
-                    <input type="checkbox" name="isActive" defaultChecked={editModal.item.isActive} />
-                    Activo
-                  </label>
-                </>
-              ) : null}
-
-              {editModal.kind === "seller" ? (
-                <>
-                  <input name="fullName" defaultValue={editModal.item.fullName} required />
-                  <input name="documentId" defaultValue={editModal.item.documentId} required />
-                  <input name="phone" defaultValue={editModal.item.phone} required />
-                  <label className="check">
-                    <input type="checkbox" name="isActive" defaultChecked={editModal.item.isActive} />
-                    Activo
-                  </label>
-                </>
-              ) : null}
-
-              {editModal.kind === "unit" ? (
-                <>
-                  <input name="code" defaultValue={editModal.item.code} required />
-                  <input name="zone" defaultValue={editModal.item.zone} required />
-                  <select name="status" defaultValue={editModal.item.status}>
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="MAINTENANCE">MAINTENANCE</option>
-                    <option value="OUT_OF_SERVICE">OUT_OF_SERVICE</option>
+                  <input name="unidadMedida" defaultValue={modalEdicion.item.unidadMedida} required />
+                  <label className="check"><input type="checkbox" name="activo" defaultChecked={modalEdicion.item.activo} />Activo</label>
+                  </>
+                ) : null}
+                {modalEdicion.kind === "vendedor" ? (
+                  <>
+                  <input name="nombreCompleto" defaultValue={modalEdicion.item.nombreCompleto} required />
+                  <input name="documento" defaultValue={modalEdicion.item.documento} required />
+                  <input name="telefono" defaultValue={modalEdicion.item.telefono} required />
+                  <label className="check"><input type="checkbox" name="activo" defaultChecked={modalEdicion.item.activo} />Activo</label>
+                  </>
+                ) : null}
+                {modalEdicion.kind === "unidad" ? (
+                  <>
+                  <input name="codigo" defaultValue={modalEdicion.item.codigo} required />
+                  <input name="zona" defaultValue={modalEdicion.item.zona} required />
+                  <select name="estado" defaultValue={modalEdicion.item.estado}>
+                    <option value="ACTIVA">Activa</option>
+                    <option value="MANTENIMIENTO">Mantenimiento</option>
+                    <option value="FUERA_DE_SERVICIO">Fuera de servicio</option>
                   </select>
-                  <select name="sellerId" defaultValue={editModal.item.sellerId ?? ""}>
+                  <select name="idVendedor" defaultValue={modalEdicion.item.idVendedor ?? ""}>
                     <option value="">Sin vendedor</option>
-                    {sellers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.fullName}
-                      </option>
-                    ))}
+                    {vendedores.map((v) => <option key={v.id} value={v.id}>{v.nombreCompleto}</option>)}
                   </select>
-                  <label className="check">
-                    <input type="checkbox" name="isActive" defaultChecked={editModal.item.isActive} />
-                    Activo
-                  </label>
-                </>
-              ) : null}
-
-              <div className="row-actions">
-                <button type="submit">Guardar</button>
-                <button type="button" className="danger" onClick={() => setEditModal(null)}>
+                  <label className="check"><input type="checkbox" name="activo" defaultChecked={modalEdicion.item.activo} />Activo</label>
+                  </>
+                ) : null}
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-secundario-modal" onClick={() => setModalEdicion(null)}>
                   Cancelar
+                </button>
+                <button type="submit" className="btn-primario-modal">
+                  Guardar cambios
                 </button>
               </div>
             </form>
+          </article>
+        </section>
+      ) : null}
+
+      {modalEliminacion ? (
+        <section className="modal-overlay" onClick={() => setModalEliminacion(null)}>
+          <article className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <header className="modal-header">
+              <h3>Confirmar eliminacion</h3>
+              <p className="modal-subtitle">
+                Esta accion eliminara el registro seleccionado.
+              </p>
+            </header>
+            <div className="modal-body">
+              <p className="subtle">
+                ¿Deseas eliminar <strong>{modalEliminacion.etiqueta}</strong>?
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-secundario-modal" onClick={() => setModalEliminacion(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="danger btn-primario-modal" onClick={confirmarEliminacion}>
+                Eliminar
+              </button>
+            </div>
           </article>
         </section>
       ) : null}
@@ -706,3 +773,5 @@ function ProtectedApp() {
 }
 
 export default App;
+
+

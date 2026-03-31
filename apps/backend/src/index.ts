@@ -1,7 +1,7 @@
 import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { PrismaClient } from "@prisma/client";
+import { MobileUnitStatus, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 
 const prisma = new PrismaClient();
@@ -9,33 +9,36 @@ const app = Fastify({ logger: true });
 
 await app.register(cors, { origin: true });
 
-const productBodySchema = z.object({
-  code: z.string().trim().min(1).max(30),
-  name: z.string().trim().min(2).max(120),
-  type: z.enum(["FOOD", "DRINK", "SUPPLY"]),
-  unitMeasure: z.string().trim().min(1).max(30),
-  isActive: z.boolean().optional(),
+const productoBodySchema = z.object({
+  codigo: z.string().trim().min(1).max(30),
+  nombre: z.string().trim().min(2).max(120),
+  tipo: z.enum(["ALIMENTO", "BEBIDA", "INSUMO"]),
+  unidadMedida: z.string().trim().min(1).max(30),
+  activo: z.boolean().optional(),
 });
 
-const sellerBodySchema = z.object({
-  fullName: z.string().trim().min(3).max(120),
-  documentId: z.string().trim().min(4).max(30),
-  phone: z.string().trim().min(7).max(20),
-  isActive: z.boolean().optional(),
+const vendedorBodySchema = z.object({
+  nombreCompleto: z.string().trim().min(3).max(120),
+  documento: z.string().trim().min(4).max(30),
+  telefono: z.string().trim().min(7).max(20),
+  activo: z.boolean().optional(),
 });
 
-const mobileUnitBodySchema = z.object({
-  code: z.string().trim().min(1).max(30),
-  zone: z.string().trim().min(2).max(120),
-  latitude: z.number().min(-90).max(90).nullable().optional(),
-  longitude: z.number().min(-180).max(180).nullable().optional(),
-  status: z.enum(["ACTIVE", "MAINTENANCE", "OUT_OF_SERVICE"]).optional(),
-  sellerId: z.string().cuid().nullable().optional(),
-  isActive: z.boolean().optional(),
+const unidadMovilBodySchema = z.object({
+  codigo: z.string().trim().min(1).max(30),
+  zona: z.string().trim().min(2).max(120),
+  estado: z.enum(["ACTIVA", "MANTENIMIENTO", "FUERA_DE_SERVICIO"]).optional(),
+  idVendedor: z.string().uuid().nullable().optional(),
+  activo: z.boolean().optional(),
 });
 
 const idParamsSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().uuid(),
+});
+
+const paginacionQuerySchema = z.object({
+  pagina: z.coerce.number().int().min(1).default(1),
+  limite: z.coerce.number().int().min(1).max(50).default(8),
 });
 
 function badRequest(reply: { code: (code: number) => void }, message: string) {
@@ -52,7 +55,6 @@ function parseIdParams(params: unknown, reply: { code: (code: number) => void })
 }
 
 function mapPrismaError(err: unknown, reply: { code: (code: number) => void }) {
-  console.error(err);
   const maybe = err as { code?: string } | undefined;
   if (maybe?.code === "P2002") {
     reply.code(409);
@@ -82,61 +84,195 @@ app.get("/health/db", async (_request, reply) => {
   }
 });
 
-// Products CRUD
-app.get("/products", async () => {
-  const data = await prisma.product.findMany({ orderBy: { createdAt: "desc" } });
-  return { ok: true, data };
+function tipoProductoACategoria(tipo: "ALIMENTO" | "BEBIDA" | "INSUMO") {
+  if (tipo === "ALIMENTO") return "Alimentos";
+  if (tipo === "BEBIDA") return "Bebidas";
+  return "Insumos";
+}
+
+function categoriaATipoProducto(name: string): "ALIMENTO" | "BEBIDA" | "INSUMO" {
+  if (name === "Alimentos") return "ALIMENTO";
+  if (name === "Bebidas") return "BEBIDA";
+  return "INSUMO";
+}
+
+function estadoUnidadAEnum(estado: "ACTIVA" | "MANTENIMIENTO" | "FUERA_DE_SERVICIO"): MobileUnitStatus {
+  if (estado === "ACTIVA") return "ACTIVE";
+  if (estado === "MANTENIMIENTO") return "MAINTENANCE";
+  return "OUT_OF_SERVICE";
+}
+
+function enumAEstadoUnidad(status: MobileUnitStatus): "ACTIVA" | "MANTENIMIENTO" | "FUERA_DE_SERVICIO" {
+  if (status === "ACTIVE") return "ACTIVA";
+  if (status === "MAINTENANCE") return "MANTENIMIENTO";
+  return "FUERA_DE_SERVICIO";
+}
+
+function zonaDesdeDescripcion(description: string | null): string {
+  if (!description) return "Sin zona";
+  if (description.startsWith("Zona: ")) return description.slice(6);
+  return description;
+}
+
+async function asegurarCategoria(tipo: "ALIMENTO" | "BEBIDA" | "INSUMO") {
+  const name = tipoProductoACategoria(tipo);
+  const existing = await prisma.productCategory.findUnique({ where: { name } });
+  if (existing) return existing.id;
+  const created = await prisma.productCategory.create({ data: { name, isActive: true } });
+  return created.id;
+}
+
+async function asegurarUnidadMedida(rawUnidadMedida: string) {
+  const normalizedName = rawUnidadMedida.trim();
+  const code = normalizedName.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20) || "UND";
+  const existing = await prisma.measureUnit.findFirst({
+    where: { OR: [{ code }, { name: normalizedName }] },
+  });
+  if (existing) return existing.id;
+  const created = await prisma.measureUnit.create({
+    data: { code, name: normalizedName, isActive: true },
+  });
+  return created.id;
+}
+
+async function actualizarAsignacionVigente(unitId: string, sellerId: string | null) {
+  await prisma.unitSellerAssignment.updateMany({
+    where: { unitId, isCurrent: true },
+    data: { isCurrent: false, endDate: new Date() },
+  });
+  if (!sellerId) return;
+  await prisma.unitSellerAssignment.create({
+    data: {
+      unitId,
+      sellerId,
+      startDate: new Date(),
+      isCurrent: true,
+    },
+  });
+}
+
+function parsearPaginacion(query: unknown, reply: { code: (code: number) => void }) {
+  const parsed = paginacionQuerySchema.safeParse(query);
+  if (!parsed.success) return badRequest(reply, "Parámetros de paginación inválidos.");
+  const { pagina, limite } = parsed.data;
+  return { pagina, limite, skip: (pagina - 1) * limite, take: limite };
+}
+
+// Productos CRUD
+app.get("/productos", async (request, reply) => {
+  const paginacion = parsearPaginacion(request.query, reply);
+  if (!("pagina" in paginacion)) return paginacion;
+  const [total, rows] = await Promise.all([
+    prisma.product.count(),
+    prisma.product.findMany({
+      skip: paginacion.skip,
+      take: paginacion.take,
+      orderBy: { createdAt: "desc" },
+      include: { category: true, measureUnit: true },
+    }),
+  ]);
+  const totalPaginas = Math.max(1, Math.ceil(total / paginacion.limite));
+  const data = rows.map((p) => ({
+    id: p.id,
+    codigo: p.code,
+    nombre: p.name,
+    tipo: categoriaATipoProducto(p.category.name),
+    unidadMedida: p.measureUnit.name,
+    activo: p.isActive,
+    creadoEn: p.createdAt,
+    actualizadoEn: p.updatedAt,
+  }));
+  return {
+    ok: true,
+    data,
+    paginacion: {
+      pagina: paginacion.pagina,
+      limite: paginacion.limite,
+      total,
+      totalPaginas,
+    },
+  };
 });
 
-app.post("/products", async (request, reply) => {
-  const parsed = productBodySchema.safeParse(request.body);
+app.post("/productos", async (request, reply) => {
+  const parsed = productoBodySchema.safeParse(request.body);
   if (!parsed.success) {
     return badRequest(reply, parsed.error.issues[0]?.message ?? "Datos inválidos.");
   }
   try {
+    const categoryId = await asegurarCategoria(parsed.data.tipo);
+    const measureUnitId = await asegurarUnidadMedida(parsed.data.unidadMedida);
     const created = await prisma.product.create({
       data: {
-        code: parsed.data.code,
-        name: parsed.data.name,
-        type: parsed.data.type,
-        unitMeasure: parsed.data.unitMeasure,
-        isActive: parsed.data.isActive ?? true,
+        code: parsed.data.codigo,
+        name: parsed.data.nombre,
+        categoryId,
+        measureUnitId,
+        isActive: parsed.data.activo ?? true,
       },
+      include: { category: true, measureUnit: true },
     });
     reply.code(201);
-    return { ok: true, data: created };
+    return {
+      ok: true,
+      data: {
+        id: created.id,
+        codigo: created.code,
+        nombre: created.name,
+        tipo: categoriaATipoProducto(created.category.name),
+        unidadMedida: created.measureUnit.name,
+        activo: created.isActive,
+        creadoEn: created.createdAt,
+        actualizadoEn: created.updatedAt,
+      },
+    };
   } catch (err) {
     return mapPrismaError(err, reply);
   }
 });
 
-app.put("/products/:id", async (request, reply) => {
+app.put("/productos/:id", async (request, reply) => {
   const params = parseIdParams(request.params, reply);
   if (!("id" in params)) {
     return params;
   }
-  const parsed = productBodySchema.safeParse(request.body);
+  const parsed = productoBodySchema.safeParse(request.body);
   if (!parsed.success) {
     return badRequest(reply, parsed.error.issues[0]?.message ?? "Datos inválidos.");
   }
   try {
+    const categoryId = await asegurarCategoria(parsed.data.tipo);
+    const measureUnitId = await asegurarUnidadMedida(parsed.data.unidadMedida);
     const updated = await prisma.product.update({
       where: { id: params.id },
       data: {
-        code: parsed.data.code,
-        name: parsed.data.name,
-        type: parsed.data.type,
-        unitMeasure: parsed.data.unitMeasure,
-        isActive: parsed.data.isActive ?? true,
+        code: parsed.data.codigo,
+        name: parsed.data.nombre,
+        categoryId,
+        measureUnitId,
+        isActive: parsed.data.activo ?? true,
       },
+      include: { category: true, measureUnit: true },
     });
-    return { ok: true, data: updated };
+    return {
+      ok: true,
+      data: {
+        id: updated.id,
+        codigo: updated.code,
+        nombre: updated.name,
+        tipo: categoriaATipoProducto(updated.category.name),
+        unidadMedida: updated.measureUnit.name,
+        activo: updated.isActive,
+        creadoEn: updated.createdAt,
+        actualizadoEn: updated.updatedAt,
+      },
+    };
   } catch (err) {
     return mapPrismaError(err, reply);
   }
 });
 
-app.delete("/products/:id", async (request, reply) => {
+app.delete("/productos/:id", async (request, reply) => {
   const params = parseIdParams(request.params, reply);
   if (!("id" in params)) {
     return params;
@@ -149,42 +285,78 @@ app.delete("/products/:id", async (request, reply) => {
   }
 });
 
-// Sellers CRUD
-app.get("/sellers", async () => {
-  const data = await prisma.seller.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { mobileUnit: true },
-  });
-  return { ok: true, data };
+// Vendedores CRUD
+app.get("/vendedores", async (request, reply) => {
+  const paginacion = parsearPaginacion(request.query, reply);
+  if (!("pagina" in paginacion)) return paginacion;
+  const [total, rows] = await Promise.all([
+    prisma.seller.count(),
+    prisma.seller.findMany({
+      skip: paginacion.skip,
+      take: paginacion.take,
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  const totalPaginas = Math.max(1, Math.ceil(total / paginacion.limite));
+  const data = rows.map((s) => ({
+    id: s.id,
+    nombreCompleto: s.fullName,
+    documento: s.identityDocument,
+    telefono: s.phone ?? "",
+    activo: s.isActive,
+    creadoEn: s.createdAt,
+    actualizadoEn: s.updatedAt,
+  }));
+  return {
+    ok: true,
+    data,
+    paginacion: {
+      pagina: paginacion.pagina,
+      limite: paginacion.limite,
+      total,
+      totalPaginas,
+    },
+  };
 });
 
-app.post("/sellers", async (request, reply) => {
-  const parsed = sellerBodySchema.safeParse(request.body);
+app.post("/vendedores", async (request, reply) => {
+  const parsed = vendedorBodySchema.safeParse(request.body);
   if (!parsed.success) {
     return badRequest(reply, parsed.error.issues[0]?.message ?? "Datos inválidos.");
   }
   try {
     const created = await prisma.seller.create({
       data: {
-        fullName: parsed.data.fullName,
-        documentId: parsed.data.documentId,
-        phone: parsed.data.phone,
-        isActive: parsed.data.isActive ?? true,
+        fullName: parsed.data.nombreCompleto,
+        identityDocument: parsed.data.documento,
+        phone: parsed.data.telefono,
+        isActive: parsed.data.activo ?? true,
       },
     });
     reply.code(201);
-    return { ok: true, data: created };
+    return {
+      ok: true,
+      data: {
+        id: created.id,
+        nombreCompleto: created.fullName,
+        documento: created.identityDocument,
+        telefono: created.phone ?? "",
+        activo: created.isActive,
+        creadoEn: created.createdAt,
+        actualizadoEn: created.updatedAt,
+      },
+    };
   } catch (err) {
     return mapPrismaError(err, reply);
   }
 });
 
-app.put("/sellers/:id", async (request, reply) => {
+app.put("/vendedores/:id", async (request, reply) => {
   const params = parseIdParams(request.params, reply);
   if (!("id" in params)) {
     return params;
   }
-  const parsed = sellerBodySchema.safeParse(request.body);
+  const parsed = vendedorBodySchema.safeParse(request.body);
   if (!parsed.success) {
     return badRequest(reply, parsed.error.issues[0]?.message ?? "Datos inválidos.");
   }
@@ -192,19 +364,30 @@ app.put("/sellers/:id", async (request, reply) => {
     const updated = await prisma.seller.update({
       where: { id: params.id },
       data: {
-        fullName: parsed.data.fullName,
-        documentId: parsed.data.documentId,
-        phone: parsed.data.phone,
-        isActive: parsed.data.isActive ?? true,
+        fullName: parsed.data.nombreCompleto,
+        identityDocument: parsed.data.documento,
+        phone: parsed.data.telefono,
+        isActive: parsed.data.activo ?? true,
       },
     });
-    return { ok: true, data: updated };
+    return {
+      ok: true,
+      data: {
+        id: updated.id,
+        nombreCompleto: updated.fullName,
+        documento: updated.identityDocument,
+        telefono: updated.phone ?? "",
+        activo: updated.isActive,
+        creadoEn: updated.createdAt,
+        actualizadoEn: updated.updatedAt,
+      },
+    };
   } catch (err) {
     return mapPrismaError(err, reply);
   }
 });
 
-app.delete("/sellers/:id", async (request, reply) => {
+app.delete("/vendedores/:id", async (request, reply) => {
   const params = parseIdParams(request.params, reply);
   if (!("id" in params)) {
     return params;
@@ -217,46 +400,91 @@ app.delete("/sellers/:id", async (request, reply) => {
   }
 });
 
-// Mobile units CRUD
-app.get("/mobile-units", async () => {
-  const data = await prisma.mobileUnit.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { seller: true },
-  });
-  return { ok: true, data };
+// Unidades móviles CRUD
+app.get("/unidades-moviles", async (request, reply) => {
+  const paginacion = parsearPaginacion(request.query, reply);
+  if (!("pagina" in paginacion)) return paginacion;
+  const [total, rows] = await Promise.all([
+    prisma.mobileUnit.count(),
+    prisma.mobileUnit.findMany({
+      skip: paginacion.skip,
+      take: paginacion.take,
+      orderBy: { createdAt: "desc" },
+      include: {
+        unitAssignments: {
+          where: { isCurrent: true },
+          include: { seller: true },
+        },
+      },
+    }),
+  ]);
+  const totalPaginas = Math.max(1, Math.ceil(total / paginacion.limite));
+  const data = rows.map((u) => ({
+    id: u.id,
+    codigo: u.code,
+    zona: zonaDesdeDescripcion(u.description),
+    estado: enumAEstadoUnidad(u.operationalStatus),
+    idVendedor: u.unitAssignments[0]?.sellerId ?? null,
+    activo: u.isActive,
+    creadoEn: u.createdAt,
+    actualizadoEn: u.updatedAt,
+  }));
+  return {
+    ok: true,
+    data,
+    paginacion: {
+      pagina: paginacion.pagina,
+      limite: paginacion.limite,
+      total,
+      totalPaginas,
+    },
+  };
 });
 
-app.post("/mobile-units", async (request, reply) => {
-  const parsed = mobileUnitBodySchema.safeParse(request.body);
+app.post("/unidades-moviles", async (request, reply) => {
+  const parsed = unidadMovilBodySchema.safeParse(request.body);
   if (!parsed.success) {
     return badRequest(reply, parsed.error.issues[0]?.message ?? "Datos inválidos.");
   }
   try {
     const created = await prisma.mobileUnit.create({
       data: {
-        code: parsed.data.code,
-        zone: parsed.data.zone,
-        latitude: parsed.data.latitude ?? null,
-        longitude: parsed.data.longitude ?? null,
-        status: parsed.data.status ?? "ACTIVE",
-        sellerId: parsed.data.sellerId ?? null,
-        isActive: parsed.data.isActive ?? true,
+        code: parsed.data.codigo,
+        description: `Zona: ${parsed.data.zona}`,
+        operationalStatus: estadoUnidadAEnum(parsed.data.estado ?? "ACTIVA"),
+        isActive: parsed.data.activo ?? true,
       },
-      include: { seller: true },
+    });
+    await actualizarAsignacionVigente(created.id, parsed.data.idVendedor ?? null);
+    const unit = await prisma.mobileUnit.findUniqueOrThrow({
+      where: { id: created.id },
+      include: { unitAssignments: { where: { isCurrent: true } } },
     });
     reply.code(201);
-    return { ok: true, data: created };
+    return {
+      ok: true,
+      data: {
+        id: unit.id,
+        codigo: unit.code,
+        zona: zonaDesdeDescripcion(unit.description),
+        estado: enumAEstadoUnidad(unit.operationalStatus),
+        idVendedor: unit.unitAssignments[0]?.sellerId ?? null,
+        activo: unit.isActive,
+        creadoEn: unit.createdAt,
+        actualizadoEn: unit.updatedAt,
+      },
+    };
   } catch (err) {
     return mapPrismaError(err, reply);
   }
 });
 
-app.put("/mobile-units/:id", async (request, reply) => {
+app.put("/unidades-moviles/:id", async (request, reply) => {
   const params = parseIdParams(request.params, reply);
   if (!("id" in params)) {
     return params;
   }
-  const parsed = mobileUnitBodySchema.safeParse(request.body);
+  const parsed = unidadMovilBodySchema.safeParse(request.body);
   if (!parsed.success) {
     return badRequest(reply, parsed.error.issues[0]?.message ?? "Datos inválidos.");
   }
@@ -264,28 +492,42 @@ app.put("/mobile-units/:id", async (request, reply) => {
     const updated = await prisma.mobileUnit.update({
       where: { id: params.id },
       data: {
-        code: parsed.data.code,
-        zone: parsed.data.zone,
-        latitude: parsed.data.latitude ?? null,
-        longitude: parsed.data.longitude ?? null,
-        status: parsed.data.status ?? "ACTIVE",
-        sellerId: parsed.data.sellerId ?? null,
-        isActive: parsed.data.isActive ?? true,
+        code: parsed.data.codigo,
+        description: `Zona: ${parsed.data.zona}`,
+        operationalStatus: estadoUnidadAEnum(parsed.data.estado ?? "ACTIVA"),
+        isActive: parsed.data.activo ?? true,
       },
-      include: { seller: true },
     });
-    return { ok: true, data: updated };
+    await actualizarAsignacionVigente(updated.id, parsed.data.idVendedor ?? null);
+    const unit = await prisma.mobileUnit.findUniqueOrThrow({
+      where: { id: updated.id },
+      include: { unitAssignments: { where: { isCurrent: true } } },
+    });
+    return {
+      ok: true,
+      data: {
+        id: unit.id,
+        codigo: unit.code,
+        zona: zonaDesdeDescripcion(unit.description),
+        estado: enumAEstadoUnidad(unit.operationalStatus),
+        idVendedor: unit.unitAssignments[0]?.sellerId ?? null,
+        activo: unit.isActive,
+        creadoEn: unit.createdAt,
+        actualizadoEn: unit.updatedAt,
+      },
+    };
   } catch (err) {
     return mapPrismaError(err, reply);
   }
 });
 
-app.delete("/mobile-units/:id", async (request, reply) => {
+app.delete("/unidades-moviles/:id", async (request, reply) => {
   const params = parseIdParams(request.params, reply);
   if (!("id" in params)) {
     return params;
   }
   try {
+    await prisma.unitSellerAssignment.deleteMany({ where: { unitId: params.id } });
     await prisma.mobileUnit.delete({ where: { id: params.id } });
     return { ok: true };
   } catch (err) {

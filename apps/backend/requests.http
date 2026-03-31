@@ -7,47 +7,45 @@ GET {{baseUrl}}/health
 GET {{baseUrl}}/health/db
 
 ### Listar productos
-GET {{baseUrl}}/products
+GET {{baseUrl}}/productos
 
 ### Crear producto
-POST {{baseUrl}}/products
+POST {{baseUrl}}/productos
 Content-Type: application/json
 
 {
-  "code": "P100",
-  "name": "Pan para lomito",
-  "type": "FOOD",
-  "unitMeasure": "unidad",
-  "isActive": true
+  "codigo": "P100",
+  "nombre": "Pan para lomito",
+  "tipo": "ALIMENTO",
+  "unidadMedida": "unidad",
+  "activo": true
 }
 
 ### Listar vendedores
-GET {{baseUrl}}/sellers
+GET {{baseUrl}}/vendedores
 
 ### Crear vendedor
-POST {{baseUrl}}/sellers
+POST {{baseUrl}}/vendedores
 Content-Type: application/json
 
 {
-  "fullName": "Ana Gutierrez",
-  "documentId": "5124789",
-  "phone": "70991122",
-  "isActive": true
+  "nombreCompleto": "Ana Gutierrez",
+  "documento": "5124789",
+  "telefono": "70991122",
+  "activo": true
 }
 
 ### Listar unidades moviles
-GET {{baseUrl}}/mobile-units
+GET {{baseUrl}}/unidades-moviles
 
-### Crear unidad movil (actualiza sellerId con uno real)
-POST {{baseUrl}}/mobile-units
+### Crear unidad movil (actualiza idVendedor con uno real)
+POST {{baseUrl}}/unidades-moviles
 Content-Type: application/json
 
 {
-  "code": "UM-10",
-  "zone": "Centro",
-  "latitude": -17.7862,
-  "longitude": -63.1817,
-  "status": "ACTIVE",
-  "sellerId": "REEMPLAZAR_POR_CUID_REAL",
-  "isActive": true
+  "codigo": "UM-10",
+  "zona": "Centro",
+  "estado": "ACTIVA",
+  "idVendedor": "REEMPLAZAR_UUID_REAL",
+  "activo": true
 }
