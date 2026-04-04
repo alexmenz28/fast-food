@@ -1,165 +1,151 @@
 import { AuditAction, PrismaClient, JourneyStatus, MobileUnitStatus, MovementType, ReferenceType, SupplyStatus } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/**
+ * Elimina datos operativos y de catálogo en orden compatible con FKs.
+ * Tras esto el seed vuelve a insertar solo los datos de prueba definidos aquí
+ * (incluye roles, usuarios, categorías, unidades de medida UND/KG únicamente).
+ */
+async function limpiarBaseDatos() {
+  await prisma.$transaction(async (tx) => {
+    await tx.auditEvent.deleteMany();
+    await tx.returnDetail.deleteMany();
+    await tx.return.deleteMany();
+    await tx.supplyDetail.deleteMany();
+    await tx.supply.deleteMany();
+    await tx.stockMovement.deleteMany();
+    await tx.warehouseStock.deleteMany();
+    await tx.product.deleteMany();
+    await tx.journeyLocation.deleteMany();
+    await tx.journey.deleteMany();
+    await tx.unitSellerAssignment.deleteMany();
+    await tx.mobileUnit.deleteMany();
+    await tx.seller.deleteMany();
+    await tx.warehouse.deleteMany();
+    await tx.user.deleteMany();
+    await tx.measureUnit.deleteMany();
+    await tx.productCategory.deleteMany();
+    await tx.zone.deleteMany();
+    await tx.role.deleteMany();
+  });
+}
+
 async function main() {
-  const roleAdmin = await prisma.role.upsert({
-    where: { name: "ADMINISTRADOR" },
-    update: {},
-    create: { name: "ADMINISTRADOR", description: "Control total del sistema" },
+  console.log("Limpiando base de datos para volver a datos de prueba…");
+  await limpiarBaseDatos();
+
+  const roleAdmin = await prisma.role.create({
+    data: { name: "ADMINISTRADOR", description: "Control total del sistema" },
   });
-  const roleWarehouse = await prisma.role.upsert({
-    where: { name: "ALMACEN" },
-    update: {},
-    create: { name: "ALMACEN", description: "Encargado de entregas y devoluciones" },
+  const roleWarehouse = await prisma.role.create({
+    data: { name: "ALMACEN", description: "Encargado de entregas y devoluciones" },
   });
-  await prisma.role.upsert({
-    where: { name: "SUPERVISOR" },
-    update: {},
-    create: { name: "SUPERVISOR", description: "Supervisión operativa" },
+  const roleSupervisor = await prisma.role.create({
+    data: { name: "SUPERVISOR", description: "Supervisión operativa" },
   });
 
-  const adminUser = await prisma.user.upsert({
-    where: { username: "admin" },
-    update: {},
-    create: {
+  const demoPassword = process.env.SEED_DEMO_PASSWORD ?? "FastFood2026!";
+  const passwordHash = await bcrypt.hash(demoPassword, 12);
+
+  const adminUser = await prisma.user.create({
+    data: {
       roleId: roleAdmin.id,
-      username: "admin",
-      passwordHash: "mock-hash-admin",
+      username: "ADMINISTRADOR",
+      passwordHash,
       fullName: "Administrador General",
       email: "admin@fastfood.bo",
     },
   });
-  const warehouseUser = await prisma.user.upsert({
-    where: { username: "almacen" },
-    update: {},
-    create: {
+  const warehouseUser = await prisma.user.create({
+    data: {
       roleId: roleWarehouse.id,
-      username: "almacen",
-      passwordHash: "mock-hash-almacen",
-      fullName: "Responsable de Almacen",
+      username: "ALMACEN",
+      passwordHash,
+      fullName: "Responsable de almacen",
       email: "almacen@fastfood.bo",
     },
   });
-
-  const categoryFood = await prisma.productCategory.upsert({
-    where: { name: "Alimentos" },
-    update: {},
-    create: { name: "Alimentos" },
-  });
-  const categoryDrink = await prisma.productCategory.upsert({
-    where: { name: "Bebidas" },
-    update: {},
-    create: { name: "Bebidas" },
-  });
-  const categorySupply = await prisma.productCategory.upsert({
-    where: { name: "Insumos" },
-    update: {},
-    create: { name: "Insumos" },
+  await prisma.user.create({
+    data: {
+      roleId: roleSupervisor.id,
+      username: "SUPERVISOR",
+      passwordHash,
+      fullName: "Supervisor de operaciones",
+      email: "supervisor@fastfood.bo",
+    },
   });
 
-  const unitPiece = await prisma.measureUnit.upsert({
-    where: { code: "UND" },
-    update: {},
-    create: { code: "UND", name: "Unidad" },
+  const categoryFood = await prisma.productCategory.create({
+    data: { name: "Alimentos" },
   });
-  const unitKg = await prisma.measureUnit.upsert({
-    where: { code: "KG" },
-    update: {},
-    create: { code: "KG", name: "Kilogramo" },
+  const categoryDrink = await prisma.productCategory.create({
+    data: { name: "Bebidas" },
+  });
+  const categorySupply = await prisma.productCategory.create({
+    data: { name: "Insumos" },
+  });
+
+  /** Catálogo cerrado: solo Unidad y Kilogramo (códigos UND, KG). */
+  const unitPiece = await prisma.measureUnit.create({
+    data: { code: "UND", name: "Unidad", isActive: true },
+  });
+  const unitKg = await prisma.measureUnit.create({
+    data: { code: "KG", name: "Kilogramo", isActive: true },
   });
 
   const sellers = await Promise.all([
-    prisma.seller.upsert({
-      where: { identityDocument: "7845123" },
-      update: { fullName: "Juan Perez", phone: "70011223" },
-      create: { identityDocument: "7845123", fullName: "Juan Perez", phone: "70011223" },
+    prisma.seller.create({
+      data: { identityDocument: "7845123", fullName: "Juan Perez", phone: "70011223" },
     }),
-    prisma.seller.upsert({
-      where: { identityDocument: "6723419" },
-      update: { fullName: "Maria Rojas", phone: "72133456" },
-      create: { identityDocument: "6723419", fullName: "Maria Rojas", phone: "72133456" },
+    prisma.seller.create({
+      data: { identityDocument: "6723419", fullName: "Maria Rojas", phone: "72133456" },
     }),
   ]);
 
   const units = await Promise.all([
-    prisma.mobileUnit.upsert({
-      where: { code: "UM-01" },
-      update: { description: "Zona: Equipetrol", operationalStatus: MobileUnitStatus.ACTIVE },
-      create: { code: "UM-01", description: "Zona: Equipetrol", operationalStatus: MobileUnitStatus.ACTIVE },
+    prisma.mobileUnit.create({
+      data: { code: "UM-01", description: "Zona: Equipetrol", operationalStatus: MobileUnitStatus.ACTIVE },
     }),
-    prisma.mobileUnit.upsert({
-      where: { code: "UM-02" },
-      update: { description: "Zona: Zona Universitaria", operationalStatus: MobileUnitStatus.ACTIVE },
-      create: { code: "UM-02", description: "Zona: Zona Universitaria", operationalStatus: MobileUnitStatus.ACTIVE },
+    prisma.mobileUnit.create({
+      data: { code: "UM-02", description: "Zona: Zona Universitaria", operationalStatus: MobileUnitStatus.ACTIVE },
     }),
   ]);
 
-  const assignments = [
-    { unitId: units[0].id, sellerId: sellers[0].id },
-    { unitId: units[1].id, sellerId: sellers[1].id },
-  ];
-  for (const assignment of assignments) {
-    const existing = await prisma.unitSellerAssignment.findFirst({
-      where: { unitId: assignment.unitId, sellerId: assignment.sellerId, isCurrent: true },
-    });
-    if (!existing) {
-      await prisma.unitSellerAssignment.create({
-        data: {
-          unitId: assignment.unitId,
-          sellerId: assignment.sellerId,
-          startDate: new Date("2026-03-01"),
-          isCurrent: true,
-        },
-      });
-    }
-  }
+  await prisma.unitSellerAssignment.createMany({
+    data: [
+      { unitId: units[0].id, sellerId: sellers[0].id, startDate: new Date("2026-03-01"), isCurrent: true },
+      { unitId: units[1].id, sellerId: sellers[1].id, startDate: new Date("2026-03-01"), isCurrent: true },
+    ],
+  });
 
-  const zone = await prisma.zone.upsert({
-    where: { name: "Equipetrol" },
-    update: {},
-    create: { name: "Equipetrol", description: "Zona de alta demanda nocturna" },
+  const zone = await prisma.zone.create({
+    data: { name: "Equipetrol", description: "Zona de alta demanda nocturna" },
   });
 
   const products = await Promise.all([
-    prisma.product.upsert({
-      where: { code: "P001" },
-      update: { name: "Pan de hamburguesa", categoryId: categoryFood.id, measureUnitId: unitPiece.id },
-      create: { code: "P001", name: "Pan de hamburguesa", categoryId: categoryFood.id, measureUnitId: unitPiece.id },
+    prisma.product.create({
+      data: { code: "P001", name: "Pan de hamburguesa", categoryId: categoryFood.id, measureUnitId: unitPiece.id },
     }),
-    prisma.product.upsert({
-      where: { code: "P002" },
-      update: { name: "Carne para hamburguesa", categoryId: categoryFood.id, measureUnitId: unitKg.id },
-      create: { code: "P002", name: "Carne para hamburguesa", categoryId: categoryFood.id, measureUnitId: unitKg.id },
+    prisma.product.create({
+      data: { code: "P002", name: "Carne para hamburguesa", categoryId: categoryFood.id, measureUnitId: unitKg.id },
     }),
-    prisma.product.upsert({
-      where: { code: "P003" },
-      update: { name: "Gaseosa", categoryId: categoryDrink.id, measureUnitId: unitPiece.id },
-      create: { code: "P003", name: "Gaseosa", categoryId: categoryDrink.id, measureUnitId: unitPiece.id },
+    prisma.product.create({
+      data: { code: "P003", name: "Gaseosa", categoryId: categoryDrink.id, measureUnitId: unitPiece.id },
     }),
-    prisma.product.upsert({
-      where: { code: "P004" },
-      update: { name: "Servilletas", categoryId: categorySupply.id, measureUnitId: unitPiece.id },
-      create: { code: "P004", name: "Servilletas", categoryId: categorySupply.id, measureUnitId: unitPiece.id },
+    prisma.product.create({
+      data: { code: "P004", name: "Servilletas", categoryId: categorySupply.id, measureUnitId: unitPiece.id },
     }),
   ]);
 
-  const warehouse = await prisma.warehouse.upsert({
-    where: { code: "ALM-01" },
-    update: {},
-    create: { code: "ALM-01", name: "Almacen Central", address: "Av. Central 123" },
+  const warehouse = await prisma.warehouse.create({
+    data: { code: "ALM-01", name: "Almacen Central", address: "Av. Central 123" },
   });
 
   for (const product of products) {
-    await prisma.warehouseStock.upsert({
-      where: {
-        warehouseId_productId: {
-          warehouseId: warehouse.id,
-          productId: product.id,
-        },
-      },
-      update: { currentQty: 100, minimumQty: 20 },
-      create: {
+    await prisma.warehouseStock.create({
+      data: {
         warehouseId: warehouse.id,
         productId: product.id,
         currentQty: 100,
@@ -244,7 +230,7 @@ async function main() {
     },
   });
 
-  console.log("Seed completado para modelo completo (es).");
+  console.log("Seed completado: base limpia, unidades de medida UND (Unidad) y KG (Kilogramo) solamente.");
 }
 
 main()

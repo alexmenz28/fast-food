@@ -1,32 +1,54 @@
 @baseUrl = http://localhost:3000
+@apiV1 = http://localhost:3000/v1
 
-### Salud API
+### Iniciar sesion (usuarios de seed: ADMINISTRADOR | ALMACEN | SUPERVISOR; contrasena por defecto FastFood2026!)
+# @name login
+POST {{apiV1}}/auth/login
+Content-Type: application/json
+
+{
+  "usuario": "ADMINISTRADOR",
+  "contrasena": "FastFood2026!"
+}
+
+### Sesion actual (usa el token devuelto por login; en REST Client: {{login.response.body.data.token}})
+GET {{apiV1}}/auth/me
+Authorization: Bearer {{login.response.body.data.token}}
+
+### Salud API (sin versionar; util para probes / balanceadores)
 GET {{baseUrl}}/health
 
 ### Salud DB
 GET {{baseUrl}}/health/db
 
-### Listar productos
-GET {{baseUrl}}/productos
+### Listar productos (requiere Bearer; API versionada bajo /v1)
+GET {{apiV1}}/productos
+Authorization: Bearer {{login.response.body.data.token}}
 
-### Crear producto
-POST {{baseUrl}}/productos
+### Unidades de medida (catálogo para selects)
+GET {{apiV1}}/unidades-medida
+Authorization: Bearer {{login.response.body.data.token}}
+
+### Crear producto (codigo lo genera el servidor; idUnidadMedida del GET anterior, ej. 1)
+POST {{apiV1}}/productos
 Content-Type: application/json
+Authorization: Bearer {{login.response.body.data.token}}
 
 {
-  "codigo": "P100",
   "nombre": "Pan para lomito",
   "tipo": "ALIMENTO",
-  "unidadMedida": "unidad",
+  "idUnidadMedida": 1,
   "activo": true
 }
 
 ### Listar vendedores
-GET {{baseUrl}}/vendedores
+GET {{apiV1}}/vendedores
+Authorization: Bearer {{login.response.body.data.token}}
 
 ### Crear vendedor
-POST {{baseUrl}}/vendedores
+POST {{apiV1}}/vendedores
 Content-Type: application/json
+Authorization: Bearer {{login.response.body.data.token}}
 
 {
   "nombreCompleto": "Ana Gutierrez",
@@ -36,14 +58,15 @@ Content-Type: application/json
 }
 
 ### Listar unidades moviles
-GET {{baseUrl}}/unidades-moviles
+GET {{apiV1}}/unidades-moviles
+Authorization: Bearer {{login.response.body.data.token}}
 
-### Crear unidad movil (actualiza idVendedor con uno real)
-POST {{baseUrl}}/unidades-moviles
+### Crear unidad movil (codigo lo genera el servidor; idVendedor opcional UUID real)
+POST {{apiV1}}/unidades-moviles
 Content-Type: application/json
+Authorization: Bearer {{login.response.body.data.token}}
 
 {
-  "codigo": "UM-10",
   "zona": "Centro",
   "estado": "ACTIVA",
   "idVendedor": "REEMPLAZAR_UUID_REAL",
