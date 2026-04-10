@@ -12,11 +12,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       return badRequest(reply, parsed.error.issues[0]?.message ?? "Datos invalidos.");
     }
     const usuarioNorm = parsed.data.usuario.trim().toUpperCase();
-    const user = await prisma.user.findUnique({
+    const user = await prisma.usuario.findUnique({
       where: { username: usuarioNorm },
-      include: { role: true },
+      include: { rol: true },
     });
-    if (!user?.isActive || !user.role.isActive) {
+    if (!user?.isActive || !user.rol.isActive) {
       reply.code(401);
       return { ok: false, error: "Usuario o contrasena incorrectos." };
     }
@@ -27,7 +27,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const token = await firmarTokenJwt({
-      role: user.role.name,
+      role: user.rol.name,
       usuario: user.username,
       nombreCompleto: user.fullName,
       sub: user.id,
@@ -41,7 +41,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           id: user.id,
           nombreUsuario: user.username,
           nombreCompleto: user.fullName,
-          rol: user.role.name,
+          rol: user.rol.name,
         },
       },
     };
@@ -53,11 +53,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       reply.code(401);
       return { ok: false, error: "No autenticado." };
     }
-    const user = await prisma.user.findUnique({
+    const user = await prisma.usuario.findUnique({
       where: { id: auth.userId },
-      include: { role: true },
+      include: { rol: true },
     });
-    if (!user?.isActive || !user.role.isActive) {
+    if (!user?.isActive || !user.rol.isActive) {
       reply.code(401);
       return { ok: false, error: "Usuario inactivo." };
     }
@@ -67,7 +67,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         id: user.id,
         nombreUsuario: user.username,
         nombreCompleto: user.fullName,
-        rol: user.role.name,
+        rol: user.rol.name,
       },
     };
   });

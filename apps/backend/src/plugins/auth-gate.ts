@@ -6,7 +6,8 @@ import { jwtSecretKey } from "../lib/jwt.js";
 const LOGIN_PATH = `${API_VERSION_PATH}/auth/login`;
 
 function rutaPublica(method: string, pathSinQuery: string): boolean {
-  if (method === "GET" && (pathSinQuery === "/health" || pathSinQuery === "/health/db")) {
+  const healthPath = pathSinQuery === "/health" || pathSinQuery === "/health/db";
+  if (healthPath && (method === "GET" || method === "HEAD")) {
     return true;
   }
   if (method === "POST" && pathSinQuery === LOGIN_PATH) {

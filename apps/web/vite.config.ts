@@ -1,13 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// En desarrollo, el proxy evita CORS si abres la app por 127.0.0.1 y el API por localhost (u otro host).
+// Proxy a IPv4 explícito: en Windows `localhost` puede ir a ::1 y el backend (0.0.0.0) no recibe → ECONNREFUSED.
 export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        target: "http://127.0.0.1:3000",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, "") || "/",
       },

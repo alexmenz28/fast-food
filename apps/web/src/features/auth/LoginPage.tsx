@@ -4,12 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { IconMoon, IconSun } from "../../icons";
 import { API_V1_URL } from "../../shared/api/config";
 import { parseSesion, SESSION_KEY, type Sesion } from "../../shared/session";
+import { FeedbackMessage, type FeedbackState } from "../../shared/ui/FeedbackMessage";
 import { useTheme } from "../../theme";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const [mensaje, setMensaje] = useState("");
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
@@ -24,10 +25,10 @@ export function LoginPage() {
     const usuario = String(form.get("usuario") ?? "").trim();
     const contrasena = String(form.get("contrasena") ?? "");
     if (!usuario || !contrasena) {
-      setMensaje("Completa usuario y contrasena.");
+      setFeedback({ tipo: "warning", text: "Completa usuario y contraseña." });
       return;
     }
-    setMensaje("");
+    setFeedback(null);
     setEnviando(true);
     try {
       const res = await fetch(`${API_V1_URL}/auth/login`, {
@@ -44,13 +45,13 @@ export function LoginPage() {
         };
       };
       if (!res.ok || !body.ok || !body.data?.token || !body.data.usuario) {
-        setMensaje(String(body.error ?? "No se pudo iniciar sesion."));
+        setFeedback({ tipo: "error", text: String(body.error ?? "No se pudo iniciar sesión.") });
         return;
       }
       const u = body.data.usuario;
       const rol = u.rol;
       if (rol !== "ADMINISTRADOR" && rol !== "ALMACEN" && rol !== "SUPERVISOR") {
-        setMensaje("Rol no reconocido.");
+        setFeedback({ tipo: "error", text: "Rol no reconocido." });
         return;
       }
       const sesion: Sesion = {
@@ -62,7 +63,7 @@ export function LoginPage() {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(sesion));
       navigate("/resumen", { replace: true });
     } catch {
-      setMensaje("Error de red. Verifica que el backend este activo.");
+      setFeedback({ tipo: "error", text: "Error de red. Verifica que el backend esté activo." });
     } finally {
       setEnviando(false);
     }
@@ -84,24 +85,39 @@ export function LoginPage() {
           <span className="brand-mark">FF</span>
           <div>
             <h1>FAST FOOD S.A.</h1>
-            <p className="auth-tagline">Abastecimiento · Unidades moviles</p>
+            <p className="auth-tagline">Abastecimiento · Unidades móviles</p>
           </div>
         </div>
-        <p className="auth-lead">Sistema de gestion de abastecimiento</p>
+        <p className="auth-lead">Sistema de gestión de abastecimiento</p>
         <form onSubmit={iniciarSesion}>
-          <input
-            name="usuario"
-            placeholder="Usuario (nombre del rol: ADMINISTRADOR, ALMACEN, SUPERVISOR)"
-            autoComplete="username"
-            required
-          />
-          <input
-            name="contrasena"
-            type="password"
-            placeholder="Contrasena"
-            autoComplete="current-password"
-            required
-          />
+          <p className="subtle" style={{ margin: 0, fontSize: "0.82rem" }}>
+            Los campos con <span className="req-mark">*</span> son obligatorios.
+          </p>
+          <div className="form-field-block">
+            <label htmlFor="login-usuario">
+              Usuario <span className="req-mark">*</span>
+            </label>
+            <p className="form-field-hint">Nombre de usuario del rol (ADMINISTRADOR, ALMACEN o SUPERVISOR).</p>
+            <input
+              id="login-usuario"
+              name="usuario"
+              autoComplete="username"
+              required
+            />
+          </div>
+          <div className="form-field-block">
+            <label htmlFor="login-clave">
+              Contraseña <span className="req-mark">*</span>
+            </label>
+            <p className="form-field-hint">Credencial asociada a la cuenta (ver README / seed).</p>
+            <input
+              id="login-clave"
+              name="contrasena"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </div>
           <button type="submit" disabled={enviando}>
             {enviando ? "Ingresando…" : "Ingresar"}
           </button>
@@ -110,7 +126,7 @@ export function LoginPage() {
           Tras <code>npm run db:seed</code>, la contrasena por defecto es la indicada en README (variable{" "}
           <code>SEED_DEMO_PASSWORD</code>).
         </small> */}
-        {mensaje ? <p className="message">{mensaje}</p> : null}
+        <FeedbackMessage feedback={feedback} />
       </section>
     </main>
   );

@@ -3,17 +3,24 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "build": "tsc",
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
+    "@fastfood/catalogos-core": "*",
     "@fastify/cors": "^11.1.0",
     "@prisma/client": "^6.19.0",
     "bcryptjs": "^3.0.3",
@@ -27,6 +34,7 @@
     "@types/node": "^24.10.1",
     "prisma": "^6.19.0",
     "tsx": "^4.21.0",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
   }
 }

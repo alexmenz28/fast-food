@@ -1,3 +1,7 @@
+// Nomenclatura: en PostgreSQL, tablas (@@map), columnas (@map) y tipos enum están en español.
+// Los modelos y relaciones de Prisma siguen el mismo criterio; los campos escalares conservan
+// nombres en inglés habituales en código (p. ej. code, fullName) pero mapean a columnas en español.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -5,14 +9,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-enum MobileUnitStatus {
-  ACTIVE         @map("ACTIVA")
-  MAINTENANCE    @map("MANTENIMIENTO")
-  OUT_OF_SERVICE @map("FUERA_DE_SERVICIO")
-
-  @@map("estado_unidad_movil")
 }
 
 enum JourneyStatus {
@@ -59,265 +55,278 @@ enum AuditAction {
   @@map("accion_auditoria")
 }
 
-model Role {
-  id          Int      @id @default(autoincrement()) @map("id")
-  name        String   @unique @db.VarChar(40) @map("nombre")
-  description String?  @db.VarChar(255) @map("descripcion")
-  isActive    Boolean  @default(true) @map("activo")
-  users       User[]
+model Rol {
+  id          Int       @id @default(autoincrement()) @map("id")
+  name        String    @unique @db.VarChar(40) @map("nombre")
+  description String?   @db.VarChar(255) @map("descripcion")
+  isActive    Boolean   @default(true) @map("activo")
+  usuarios    Usuario[]
 
   @@map("rol")
 }
 
-model User {
-  id              String              @id @default(uuid()) @db.Uuid @map("id")
-  roleId          Int                 @map("id_rol")
-  username        String              @unique @db.VarChar(60) @map("nombre_usuario")
-  passwordHash    String              @db.VarChar(255) @map("hash_contrasena")
-  fullName        String              @db.VarChar(140) @map("nombre_completo")
-  email           String?             @unique @db.VarChar(120) @map("correo")
-  isActive        Boolean             @default(true) @map("activo")
-  createdAt       DateTime            @default(now()) @db.Timestamptz(6) @map("creado_en")
-  updatedAt       DateTime            @updatedAt @db.Timestamptz(6) @map("actualizado_en")
-  role            Role                @relation(fields: [roleId], references: [id])
-  stockMovements  StockMovement[]
-  suppliesGiven   Supply[]            @relation("supply_given_by")
-  returnsReceived Return[]            @relation("return_received_by")
-  auditEvents     AuditEvent[]
+model Usuario {
+  id              String   @id @default(uuid()) @db.Uuid @map("id")
+  roleId          Int      @map("id_rol")
+  username        String   @unique @db.VarChar(60) @map("nombre_usuario")
+  passwordHash    String   @db.VarChar(255) @map("hash_contrasena")
+  fullName        String   @db.VarChar(140) @map("nombre_completo")
+  email           String?  @unique @db.VarChar(120) @map("correo")
+  isActive        Boolean  @default(true) @map("activo")
+  createdAt       DateTime @default(now()) @db.Timestamptz(6) @map("creado_en")
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6) @map("actualizado_en")
+  rol             Rol      @relation(fields: [roleId], references: [id])
+  movimientosInventario MovimientoInventario[]
+  abastecimientosEntregados Abastecimiento[] @relation("abastecimiento_entregado_por")
+  devolucionesRecibidas     Devolucion[]     @relation("devolucion_recibida_por")
+  eventosAuditoria          EventoAuditoria[]
 
   @@map("usuario")
 }
 
-model Seller {
-  id                 String               @id @default(uuid()) @db.Uuid @map("id")
-  identityDocument   String               @unique @db.VarChar(30) @map("documento_identidad")
-  fullName           String               @db.VarChar(140) @map("nombre_completo")
-  phone              String?              @db.VarChar(25) @map("telefono")
-  isActive           Boolean              @default(true) @map("activo")
-  createdAt          DateTime             @default(now()) @db.Timestamptz(6) @map("creado_en")
-  updatedAt          DateTime             @updatedAt @db.Timestamptz(6) @map("actualizado_en")
-  unitAssignments    UnitSellerAssignment[]
-  journeys           Journey[]
+model Vendedor {
+  id               String   @id @default(uuid()) @db.Uuid @map("id")
+  identityDocument String   @unique @db.VarChar(30) @map("documento_identidad")
+  fullName         String   @db.VarChar(140) @map("nombre_completo")
+  phone            String?  @db.VarChar(25) @map("telefono")
+  isActive         Boolean  @default(true) @map("activo")
+  createdAt        DateTime @default(now()) @db.Timestamptz(6) @map("creado_en")
+  updatedAt        DateTime @updatedAt @db.Timestamptz(6) @map("actualizado_en")
+  asignacionesUnidad AsignacionUnidadVendedor[]
+  jornadas           Jornada[]
 
   @@map("vendedor")
 }
 
-model MobileUnit {
-  id                 String               @id @default(uuid()) @db.Uuid @map("id")
-  code               String               @unique @db.VarChar(30) @map("codigo")
-  plate              String?              @db.VarChar(20) @map("placa")
-  description        String?              @db.VarChar(255) @map("descripcion")
-  operationalStatus  MobileUnitStatus     @default(ACTIVE) @map("estado_operativo")
-  isActive           Boolean              @default(true) @map("activo")
-  createdAt          DateTime             @default(now()) @db.Timestamptz(6) @map("creado_en")
-  updatedAt          DateTime             @updatedAt @db.Timestamptz(6) @map("actualizado_en")
-  unitAssignments    UnitSellerAssignment[]
-  journeys           Journey[]
+/** Catálogo editable: nuevos estados sin cambiar enums en código (solo datos + migración de FK). */
+model CatalogoEstadoUnidadMovil {
+  id              Int           @id @default(autoincrement()) @map("id")
+  code            String        @unique @db.VarChar(40) @map("codigo")
+  name            String        @db.VarChar(80) @map("nombre")
+  sortOrder       Int           @default(0) @map("orden")
+  isActive        Boolean       @default(true) @map("activo")
+  unidadesMoviles UnidadMovil[]
+
+  @@map("catalogo_estado_unidad_movil")
+}
+
+model UnidadMovil {
+  id                  String                    @id @default(uuid()) @db.Uuid @map("id")
+  code                String                    @unique @db.VarChar(30) @map("codigo")
+  plate               String                    @db.VarChar(20) @map("placa")
+  description         String?                   @db.VarChar(255) @map("descripcion")
+  operationalStatusId Int                       @map("id_estado_operativo")
+  estadoOperativo     CatalogoEstadoUnidadMovil   @relation(fields: [operationalStatusId], references: [id])
+  isActive            Boolean                   @default(true) @map("activo")
+  createdAt           DateTime                  @default(now()) @db.Timestamptz(6) @map("creado_en")
+  updatedAt           DateTime                  @updatedAt @db.Timestamptz(6) @map("actualizado_en")
+  asignacionesVendedor AsignacionUnidadVendedor[]
+  jornadas             Jornada[]
 
   @@map("unidad_movil")
 }
 
-model UnitSellerAssignment {
-  id         String    @id @default(uuid()) @db.Uuid @map("id")
-  unitId     String    @db.Uuid @map("id_unidad")
-  sellerId   String    @db.Uuid @map("id_vendedor")
-  startDate  DateTime  @db.Date @map("fecha_inicio")
-  endDate    DateTime? @db.Date @map("fecha_fin")
-  isCurrent  Boolean   @default(true) @map("es_vigente")
-  createdAt  DateTime  @default(now()) @db.Timestamptz(6) @map("creado_en")
-  unit       MobileUnit @relation(fields: [unitId], references: [id])
-  seller     Seller    @relation(fields: [sellerId], references: [id])
+model AsignacionUnidadVendedor {
+  id        String     @id @default(uuid()) @db.Uuid @map("id")
+  unitId    String     @db.Uuid @map("id_unidad")
+  sellerId  String     @db.Uuid @map("id_vendedor")
+  startDate DateTime   @db.Date @map("fecha_inicio")
+  endDate   DateTime?  @db.Date @map("fecha_fin")
+  isCurrent Boolean    @default(true) @map("es_vigente")
+  createdAt DateTime   @default(now()) @db.Timestamptz(6) @map("creado_en")
+  unidad    UnidadMovil @relation(fields: [unitId], references: [id])
+  vendedor  Vendedor    @relation(fields: [sellerId], references: [id])
 
   @@index([unitId, startDate])
   @@index([sellerId, startDate])
   @@map("asignacion_unidad_vendedor")
 }
 
-model Zone {
+model Zona {
   id          String    @id @default(uuid()) @db.Uuid @map("id")
   name        String    @unique @db.VarChar(120) @map("nombre")
   description String?   @db.VarChar(255) @map("descripcion")
   isActive    Boolean   @default(true) @map("activo")
-  journeys    Journey[]
+  jornadas    Jornada[]
 
   @@map("zona")
 }
 
-model Journey {
-  id             String          @id @default(uuid()) @db.Uuid @map("id")
-  unitId         String          @db.Uuid @map("id_unidad")
-  sellerId       String          @db.Uuid @map("id_vendedor")
-  zoneId         String          @db.Uuid @map("id_zona")
-  operationDate  DateTime        @db.Date @map("fecha_operacion")
-  startTime      DateTime        @db.Time(6) @map("hora_inicio")
-  endTime        DateTime?       @db.Time(6) @map("hora_fin")
-  status         JourneyStatus   @default(PLANNED) @map("estado")
-  createdAt      DateTime        @default(now()) @db.Timestamptz(6) @map("creado_en")
-  unit           MobileUnit      @relation(fields: [unitId], references: [id])
-  seller         Seller          @relation(fields: [sellerId], references: [id])
-  zone           Zone            @relation(fields: [zoneId], references: [id])
-  gpsPoints      JourneyLocation[]
-  supplies       Supply[]
+model Jornada {
+  id            String          @id @default(uuid()) @db.Uuid @map("id")
+  unitId        String          @db.Uuid @map("id_unidad")
+  sellerId      String          @db.Uuid @map("id_vendedor")
+  zoneId        String          @db.Uuid @map("id_zona")
+  operationDate DateTime        @db.Date @map("fecha_operacion")
+  startTime     DateTime        @db.Time(6) @map("hora_inicio")
+  endTime       DateTime?       @db.Time(6) @map("hora_fin")
+  status        JourneyStatus   @default(PLANNED) @map("estado")
+  createdAt     DateTime        @default(now()) @db.Timestamptz(6) @map("creado_en")
+  unidad        UnidadMovil     @relation(fields: [unitId], references: [id])
+  vendedor      Vendedor        @relation(fields: [sellerId], references: [id])
+  zona          Zona            @relation(fields: [zoneId], references: [id])
+  ubicaciones   UbicacionJornada[]
+  abastecimientos Abastecimiento[]
 
   @@index([operationDate])
   @@map("jornada")
 }
 
-model JourneyLocation {
-  id         String   @id @default(uuid()) @db.Uuid @map("id")
-  journeyId  String   @db.Uuid @map("id_jornada")
-  latitude   Decimal  @db.Decimal(10, 7) @map("latitud")
-  longitude  Decimal  @db.Decimal(10, 7) @map("longitud")
-  timestamp  DateTime @db.Timestamptz(6) @map("fecha_hora")
-  pointType  String?  @db.VarChar(40) @map("tipo_punto")
-  journey    Journey  @relation(fields: [journeyId], references: [id])
+model UbicacionJornada {
+  id        String   @id @default(uuid()) @db.Uuid @map("id")
+  journeyId String   @db.Uuid @map("id_jornada")
+  latitude  Decimal  @db.Decimal(10, 7) @map("latitud")
+  longitude Decimal  @db.Decimal(10, 7) @map("longitud")
+  timestamp DateTime @db.Timestamptz(6) @map("fecha_hora")
+  pointType String?  @db.VarChar(40) @map("tipo_punto")
+  jornada   Jornada  @relation(fields: [journeyId], references: [id])
 
   @@index([journeyId, timestamp])
   @@map("ubicacion_jornada")
 }
 
-model ProductCategory {
-  id          Int      @id @default(autoincrement()) @map("id")
-  name        String   @unique @db.VarChar(60) @map("nombre")
-  description String?  @db.VarChar(255) @map("descripcion")
-  isActive    Boolean  @default(true) @map("activo")
-  products    Product[]
+model CategoriaProducto {
+  id          Int        @id @default(autoincrement()) @map("id")
+  name        String     @unique @db.VarChar(60) @map("nombre")
+  description String?    @db.VarChar(255) @map("descripcion")
+  isActive    Boolean    @default(true) @map("activo")
+  productos   Producto[]
 
   @@map("categoria_producto")
 }
 
-model MeasureUnit {
-  id          Int      @id @default(autoincrement()) @map("id")
-  code        String   @unique @db.VarChar(20) @map("codigo")
-  name        String   @db.VarChar(80) @map("nombre")
-  isActive    Boolean  @default(true) @map("activo")
-  products    Product[]
+model UnidadMedida {
+  id        Int        @id @default(autoincrement()) @map("id")
+  code      String     @unique @db.VarChar(20) @map("codigo")
+  name      String     @db.VarChar(80) @map("nombre")
+  isActive  Boolean    @default(true) @map("activo")
+  productos Producto[]
 
   @@map("unidad_medida")
 }
 
-model Product {
-  id             String            @id @default(uuid()) @db.Uuid @map("id")
-  code           String            @unique @db.VarChar(30) @map("codigo")
-  name           String            @db.VarChar(140) @map("nombre")
-  categoryId     Int               @map("id_categoria")
-  measureUnitId  Int               @map("id_unidad_medida")
-  isActive       Boolean           @default(true) @map("activo")
-  createdAt      DateTime          @default(now()) @db.Timestamptz(6) @map("creado_en")
-  updatedAt      DateTime          @updatedAt @db.Timestamptz(6) @map("actualizado_en")
-  category       ProductCategory   @relation(fields: [categoryId], references: [id])
-  measureUnit    MeasureUnit       @relation(fields: [measureUnitId], references: [id])
-  stocks         WarehouseStock[]
-  stockMovements StockMovement[]
-  supplyDetails  SupplyDetail[]
-  returnDetails  ReturnDetail[]
+model Producto {
+  id             String   @id @default(uuid()) @db.Uuid @map("id")
+  code           String   @unique @db.VarChar(30) @map("codigo")
+  name           String   @db.VarChar(140) @map("nombre")
+  categoryId     Int      @map("id_categoria")
+  measureUnitId  Int      @map("id_unidad_medida")
+  isActive       Boolean  @default(true) @map("activo")
+  createdAt      DateTime @default(now()) @db.Timestamptz(6) @map("creado_en")
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6) @map("actualizado_en")
+  categoria      CategoriaProducto @relation(fields: [categoryId], references: [id])
+  unidadMedida   UnidadMedida      @relation(fields: [measureUnitId], references: [id])
+  inventarios           InventarioAlmacen[]
+  movimientos           MovimientoInventario[]
+  detallesAbastecimiento DetalleAbastecimiento[]
+  detallesDevolucion     DetalleDevolucion[]
 
   @@map("producto")
 }
 
-model Warehouse {
-  id          String           @id @default(uuid()) @db.Uuid @map("id")
-  code        String           @unique @db.VarChar(30) @map("codigo")
-  name        String           @db.VarChar(140) @map("nombre")
-  address     String?          @db.VarChar(255) @map("direccion")
-  isActive    Boolean          @default(true) @map("activo")
-  stocks      WarehouseStock[]
-  movements   StockMovement[]
-  supplies    Supply[]
+model Almacen {
+  id          String   @id @default(uuid()) @db.Uuid @map("id")
+  code        String   @unique @db.VarChar(30) @map("codigo")
+  name        String   @db.VarChar(140) @map("nombre")
+  address     String?  @db.VarChar(255) @map("direccion")
+  isActive    Boolean  @default(true) @map("activo")
+  inventarios InventarioAlmacen[]
+  movimientos MovimientoInventario[]
+  abastecimientos Abastecimiento[]
 
   @@map("almacen")
 }
 
-model WarehouseStock {
-  id          String    @id @default(uuid()) @db.Uuid @map("id")
-  warehouseId String    @db.Uuid @map("id_almacen")
-  productId   String    @db.Uuid @map("id_producto")
-  currentQty  Decimal   @default(0) @db.Decimal(12, 2) @map("cantidad_actual")
-  minimumQty  Decimal   @default(0) @db.Decimal(12, 2) @map("cantidad_minima")
-  updatedAt   DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("actualizado_en")
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
-  product     Product   @relation(fields: [productId], references: [id])
+model InventarioAlmacen {
+  id          String   @id @default(uuid()) @db.Uuid @map("id")
+  warehouseId String   @db.Uuid @map("id_almacen")
+  productId   String   @db.Uuid @map("id_producto")
+  currentQty  Decimal  @default(0) @db.Decimal(12, 2) @map("cantidad_actual")
+  minimumQty  Decimal  @default(0) @db.Decimal(12, 2) @map("cantidad_minima")
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6) @map("actualizado_en")
+  almacen     Almacen  @relation(fields: [warehouseId], references: [id])
+  producto    Producto @relation(fields: [productId], references: [id])
 
   @@unique([warehouseId, productId])
   @@map("inventario_almacen")
 }
 
-model StockMovement {
-  id             String         @id @default(uuid()) @db.Uuid @map("id")
-  warehouseId    String         @db.Uuid @map("id_almacen")
-  productId      String         @db.Uuid @map("id_producto")
-  userId         String         @db.Uuid @map("id_usuario")
-  movementType   MovementType   @map("tipo_movimiento")
-  quantity       Decimal        @db.Decimal(12, 2) @map("cantidad")
-  referenceType  ReferenceType? @map("tipo_referencia")
-  referenceId    String?        @db.Uuid @map("id_referencia")
-  note           String?        @db.Text @map("nota")
-  timestamp      DateTime       @default(now()) @db.Timestamptz(6) @map("fecha_hora")
-  warehouse      Warehouse      @relation(fields: [warehouseId], references: [id])
-  product        Product        @relation(fields: [productId], references: [id])
-  user           User           @relation(fields: [userId], references: [id])
+model MovimientoInventario {
+  id            String         @id @default(uuid()) @db.Uuid @map("id")
+  warehouseId   String         @db.Uuid @map("id_almacen")
+  productId     String         @db.Uuid @map("id_producto")
+  userId        String         @db.Uuid @map("id_usuario")
+  movementType  MovementType @map("tipo_movimiento")
+  quantity      Decimal        @db.Decimal(12, 2) @map("cantidad")
+  referenceType ReferenceType? @map("tipo_referencia")
+  referenceId   String?        @db.Uuid @map("id_referencia")
+  note          String?        @db.Text @map("nota")
+  timestamp     DateTime       @default(now()) @db.Timestamptz(6) @map("fecha_hora")
+  almacen       Almacen        @relation(fields: [warehouseId], references: [id])
+  producto      Producto       @relation(fields: [productId], references: [id])
+  usuario       Usuario        @relation(fields: [userId], references: [id])
 
   @@index([timestamp])
   @@map("movimiento_inventario")
 }
 
-model Supply {
-  id               String         @id @default(uuid()) @db.Uuid @map("id")
-  journeyId        String         @db.Uuid @map("id_jornada")
-  warehouseId      String         @db.Uuid @map("id_almacen")
-  deliveredById    String         @db.Uuid @map("id_entregado_por")
-  deliveredAt      DateTime       @db.Timestamptz(6) @map("entregado_en")
-  status           SupplyStatus   @default(OPEN) @map("estado")
-  note             String?        @db.Text @map("nota")
-  journey          Journey        @relation(fields: [journeyId], references: [id])
-  warehouse        Warehouse      @relation(fields: [warehouseId], references: [id])
-  deliveredBy      User           @relation("supply_given_by", fields: [deliveredById], references: [id])
-  details          SupplyDetail[]
-  return           Return?
+model Abastecimiento {
+  id            String       @id @default(uuid()) @db.Uuid @map("id")
+  journeyId     String       @db.Uuid @map("id_jornada")
+  warehouseId   String       @db.Uuid @map("id_almacen")
+  deliveredById String       @db.Uuid @map("id_entregado_por")
+  deliveredAt   DateTime     @db.Timestamptz(6) @map("entregado_en")
+  status        SupplyStatus @default(OPEN) @map("estado")
+  note          String?      @db.Text @map("nota")
+  jornada       Jornada      @relation(fields: [journeyId], references: [id])
+  almacen       Almacen      @relation(fields: [warehouseId], references: [id])
+  entregadoPor  Usuario      @relation("abastecimiento_entregado_por", fields: [deliveredById], references: [id])
+  detalles      DetalleAbastecimiento[]
+  devolucion    Devolucion?
 
   @@index([deliveredAt])
   @@map("abastecimiento")
 }
 
-model SupplyDetail {
-  id         String   @id @default(uuid()) @db.Uuid @map("id")
-  supplyId   String   @db.Uuid @map("id_abastecimiento")
-  productId  String   @db.Uuid @map("id_producto")
-  qtyGiven   Decimal  @db.Decimal(12, 2) @map("cantidad_entregada")
-  supply     Supply   @relation(fields: [supplyId], references: [id])
-  product    Product  @relation(fields: [productId], references: [id])
+model DetalleAbastecimiento {
+  id        String   @id @default(uuid()) @db.Uuid @map("id")
+  supplyId  String   @db.Uuid @map("id_abastecimiento")
+  productId String   @db.Uuid @map("id_producto")
+  qtyGiven  Decimal  @db.Decimal(12, 2) @map("cantidad_entregada")
+  abastecimiento Abastecimiento @relation(fields: [supplyId], references: [id])
+  producto       Producto       @relation(fields: [productId], references: [id])
 
   @@unique([supplyId, productId])
   @@map("detalle_abastecimiento")
 }
 
-model Return {
-  id             String         @id @default(uuid()) @db.Uuid @map("id")
-  supplyId       String         @unique @db.Uuid @map("id_abastecimiento")
-  receivedById   String         @db.Uuid @map("id_recibido_por")
-  returnedAt     DateTime       @db.Timestamptz(6) @map("devuelto_en")
-  note           String?        @db.Text @map("nota")
-  supply         Supply         @relation(fields: [supplyId], references: [id])
-  receivedBy     User           @relation("return_received_by", fields: [receivedById], references: [id])
-  details        ReturnDetail[]
+model Devolucion {
+  id           String   @id @default(uuid()) @db.Uuid @map("id")
+  supplyId     String   @unique @db.Uuid @map("id_abastecimiento")
+  receivedById String   @db.Uuid @map("id_recibido_por")
+  returnedAt   DateTime @db.Timestamptz(6) @map("devuelto_en")
+  note         String?  @db.Text @map("nota")
+  abastecimiento Abastecimiento @relation(fields: [supplyId], references: [id])
+  recibidoPor    Usuario        @relation("devolucion_recibida_por", fields: [receivedById], references: [id])
+  detalles       DetalleDevolucion[]
 
   @@map("devolucion")
 }
 
-model ReturnDetail {
-  id           String   @id @default(uuid()) @db.Uuid @map("id")
-  returnId     String   @db.Uuid @map("id_devolucion")
-  productId    String   @db.Uuid @map("id_producto")
-  qtyReturned  Decimal  @db.Decimal(12, 2) @map("cantidad_devuelta")
-  qtyDamaged   Decimal  @db.Decimal(12, 2) @map("cantidad_danada")
-  return       Return   @relation(fields: [returnId], references: [id])
-  product      Product  @relation(fields: [productId], references: [id])
+model DetalleDevolucion {
+  id          String   @id @default(uuid()) @db.Uuid @map("id")
+  returnId    String   @db.Uuid @map("id_devolucion")
+  productId   String   @db.Uuid @map("id_producto")
+  qtyReturned Decimal  @db.Decimal(12, 2) @map("cantidad_devuelta")
+  qtyDamaged  Decimal  @db.Decimal(12, 2) @map("cantidad_danada")
+  devolucion  Devolucion @relation(fields: [returnId], references: [id])
+  producto    Producto   @relation(fields: [productId], references: [id])
 
   @@unique([returnId, productId])
   @@map("detalle_devolucion")
 }
 
-model AuditEvent {
+model EventoAuditoria {
   id         String      @id @default(uuid()) @db.Uuid @map("id")
   userId     String?     @db.Uuid @map("id_usuario")
   entity     String      @db.VarChar(60) @map("entidad")
@@ -326,8 +335,8 @@ model AuditEvent {
   beforeData Json?       @map("datos_antes")
   afterData  Json?       @map("datos_despues")
   timestamp  DateTime    @default(now()) @db.Timestamptz(6) @map("fecha_hora")
-  ip         String?     @db.VarChar(45) @map("ip")
-  user       User?       @relation(fields: [userId], references: [id])
+  direccionIp String?    @db.VarChar(45) @map("direccion_ip")
+  usuario    Usuario?    @relation(fields: [userId], references: [id])
 
   @@index([timestamp])
   @@map("evento_auditoria")

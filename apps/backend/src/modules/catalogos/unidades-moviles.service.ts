@@ -1,26 +1,23 @@
-import { MobileUnitStatus } from "@prisma/client";
+import type { UnidadMovil } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 
-export function estadoUnidadAEnum(estado: "ACTIVA" | "MANTENIMIENTO" | "FUERA_DE_SERVICIO"): MobileUnitStatus {
-  if (estado === "ACTIVA") return "ACTIVE";
-  if (estado === "MANTENIMIENTO") return "MAINTENANCE";
-  return "OUT_OF_SERVICE";
+/** Estados operativos activos para formularios (orden configurado en BD). */
+export async function listarEstadosUnidadMovilActivos() {
+  return prisma.catalogoEstadoUnidadMovil.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, code: true, name: true },
+  });
 }
 
-export function enumAEstadoUnidad(status: MobileUnitStatus): "ACTIVA" | "MANTENIMIENTO" | "FUERA_DE_SERVICIO" {
-  if (status === "ACTIVE") return "ACTIVA";
-  if (status === "MAINTENANCE") return "MANTENIMIENTO";
-  return "FUERA_DE_SERVICIO";
-}
-
-export function zonaDesdeDescripcion(description: string | null): string {
-  if (!description) return "Sin zona";
-  if (description.startsWith("Zona: ")) return description.slice(6);
-  return description;
+export async function findEstadoUnidadMovilActivo(id: number) {
+  return prisma.catalogoEstadoUnidadMovil.findFirst({
+    where: { id, isActive: true },
+  });
 }
 
 export async function generarCodigoUnidadMovil(): Promise<string> {
-  const rows = await prisma.mobileUnit.findMany({ select: { code: true } });
+  const rows = await prisma.unidadMovil.findMany({ select: { code: true } });
   const ocupados = new Set(rows.map((r) => r.code.trim().toUpperCase()));
   let max = 0;
   for (const r of rows) {
@@ -34,18 +31,67 @@ export async function generarCodigoUnidadMovil(): Promise<string> {
   throw new Error("No se pudo generar codigo de unidad movil");
 }
 
-export async function actualizarAsignacionVigente(unitId: string, sellerId: string | null) {
-  await prisma.unitSellerAssignment.updateMany({
+/** Fecha calendario YYYY-MM-DD en UTC (compatible con columnas @db.Date). */
+export function parseSoloFechaAsignacion(yyyyMmDd: string): Date {
+  const [y, m, d] = yyyyMmDd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function finDiaUtc(d: Date): number {
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+/** Asignación vigente si no hay fecha fin o la fecha fin es hoy o futura (solo componente fecha, UTC). */
+export function asignacionEsVigente(endDate: Date | null): boolean {
+  if (!endDate) return true;
+  const hoy = finDiaUtc(new Date());
+  return finDiaUtc(endDate) >= hoy;
+}
+
+export async function actualizarAsignacionVigente(
+  unitId: string,
+  sellerId: string | null,
+  opts?: { startDate: Date; endDate: Date | null },
+) {
+  await prisma.asignacionUnidadVendedor.updateMany({
     where: { unitId, isCurrent: true },
     data: { isCurrent: false, endDate: new Date() },
   });
-  if (!sellerId) return;
-  await prisma.unitSellerAssignment.create({
+  if (!sellerId || !opts) return;
+  const isCurrent = asignacionEsVigente(opts.endDate);
+  await prisma.asignacionUnidadVendedor.create({
     data: {
       unitId,
       sellerId,
-      startDate: new Date(),
-      isCurrent: true,
+      startDate: opts.startDate,
+      endDate: opts.endDate,
+      isCurrent,
     },
   });
+}
+
+type UnidadConEstado = UnidadMovil & {
+  estadoOperativo: { id: number; code: string; name: string };
+};
+
+type AsignacionVigente = { sellerId: string; startDate: Date; endDate: Date | null };
+
+/** JSON de unidad móvil: sin zona de catálogo (esa dato va en cada jornada). */
+export function mapUnidadMovilApi(u: UnidadConEstado, unitAssignments: AsignacionVigente[]) {
+  const a = unitAssignments[0];
+  return {
+    id: u.id,
+    codigo: u.code,
+    placa: u.plate,
+    descripcion: u.description ?? null,
+    idEstadoOperativo: u.operationalStatusId,
+    estadoCodigo: u.estadoOperativo.code,
+    estadoNombre: u.estadoOperativo.name,
+    idVendedor: a?.sellerId ?? null,
+    asignacionFechaInicio: a ? a.startDate.toISOString().slice(0, 10) : null,
+    asignacionFechaFin: a?.endDate ? a.endDate.toISOString().slice(0, 10) : null,
+    activo: u.isActive,
+    creadoEn: u.createdAt,
+    actualizadoEn: u.updatedAt,
+  };
 }

@@ -35,6 +35,17 @@ export function IconUsers({ className, title }: IconProps) {
   );
 }
 
+export function IconWarehouse({ className, title }: IconProps) {
+  return (
+    <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      {title ? <title>{title}</title> : null}
+      <path d="M3 21V8l7-5 7 5v13" />
+      <path d="M9 21V12h6v9" />
+      <path d="M3 12h18" />
+    </svg>
+  );
+}
+
 export function IconTruck({ className, title }: IconProps) {
   return (
     <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -63,6 +74,17 @@ export function IconSun({ className, title }: IconProps) {
       {title ? <title>{title}</title> : null}
       <circle cx="12" cy="12" r="4" />
       <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  );
+}
+
+export function IconClipboardList({ className, title }: IconProps) {
+  return (
+    <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      {title ? <title>{title}</title> : null}
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M9 12h6M9 16h6M9 8h2" />
     </svg>
   );
 }

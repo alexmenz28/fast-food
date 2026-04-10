@@ -1,0 +1,307 @@
+<mxfile host="app.diagrams.net" agent="Cursor">
+  <diagram id="uml-backend" name="Backend UML (archivos)">
+    <mxGraphModel dx="6307" dy="2170" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t0" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontStyle=1;fontSize=14;" value="Fast-food abastecimiento — Backend (TypeScript / Fastify)&lt;br/&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;Relaciones = dependencias entre archivos (sin puntas en las flechas)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="44" width="900" x="40" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="idx" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#000000;" value="&lt;b&gt;index.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«src/index.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="88" width="200" x="10" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="idx_a" parent="idx" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="dotenv/config" vertex="1">
+          <mxGeometry height="28" width="200" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="idx_m" parent="idx" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="await buildApp(); listen(port, host)" vertex="1">
+          <mxGeometry height="28" width="200" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="app" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;app.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«src/app.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="240" x="-10" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="app_a" parent="app" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="@fastify/cors, Fastify&lt;br/&gt;API_VERSION_PATH" vertex="1">
+          <mxGeometry height="36" width="240" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="app_m" parent="app" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ buildApp(): Promise&amp;lt;FastifyInstance&amp;gt;" vertex="1">
+          <mxGeometry height="32" width="240" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="const" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;constants.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«lib/constants.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="88" width="220" x="-480" y="221" as="geometry" />
+        </mxCell>
+        <mxCell id="const_a" parent="const" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ API_VERSION: &quot;v1&quot;&lt;br/&gt;+ API_VERSION_PATH: string" vertex="1">
+          <mxGeometry height="36" width="220" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="const_m" parent="const" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="—" vertex="1">
+          <mxGeometry height="20" width="220" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="http" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;http.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«lib/http.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="130" width="280" x="1920" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="http_a" parent="http" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="+ idParamsSchema, paginacionQuerySchema (Zod)" vertex="1">
+          <mxGeometry height="28" width="280" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="http_m" parent="http" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="+ badRequest(), mapPrismaError()&lt;br/&gt;+ parseIdParams(), parsearPaginacion()" vertex="1">
+          <mxGeometry height="70" width="280" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="jwt" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;jwt.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«lib/jwt.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="260" x="500" y="58" as="geometry" />
+        </mxCell>
+        <mxCell id="jwt_a" parent="jwt" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ jwtSecretKey: Uint8Array" vertex="1">
+          <mxGeometry height="28" width="260" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="jwt_m" parent="jwt" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ firmarTokenJwt(payload): Promise&amp;lt;string&amp;gt;" vertex="1">
+          <mxGeometry height="40" width="260" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="prisma" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;prisma.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«lib/prisma.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="88" width="220" x="2560" y="1320" as="geometry" />
+        </mxCell>
+        <mxCell id="prisma_a" parent="prisma" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ prisma: PrismaClient" vertex="1">
+          <mxGeometry height="28" width="220" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="prisma_m" parent="prisma" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="—" vertex="1">
+          <mxGeometry height="28" width="220" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="catput" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;catalog-put.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«lib/catalog-put.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="280" x="2870" y="1500" as="geometry" />
+        </mxCell>
+        <mxCell id="catput_a" parent="catput" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="—" vertex="1">
+          <mxGeometry height="24" width="280" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="catput_m" parent="catput" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ effectiveCatalogoIsActive(role, bodyActivo, existing): boolean" vertex="1">
+          <mxGeometry height="44" width="280" y="56" as="geometry" />
+        </mxCell>
+        <mxCell id="gate" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;auth-gate.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«plugins/auth-gate.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="260" x="-510" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="gate_a" parent="gate" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="FastifyInstance, jose&lt;br/&gt;API_VERSION_PATH, jwtSecretKey" vertex="1">
+          <mxGeometry height="36" width="260" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="gate_m" parent="gate" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ registerAuthGate(app): void" vertex="1">
+          <mxGeometry height="32" width="260" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="v1" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#e8f4fc;strokeColor=#000000;" value="&lt;b&gt;v1.routes.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«modules/v1/v1.routes.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="88" width="240" x="40" y="506" as="geometry" />
+        </mxCell>
+        <mxCell id="v1_a" parent="v1" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="auth, productos, vendedores,&lt;br/&gt;unidades-moviles, unidades-medida" vertex="1">
+          <mxGeometry height="32" width="240" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="v1_m" parent="v1" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ v1Routes: FastifyPluginAsync" vertex="1">
+          <mxGeometry height="24" width="240" y="64" as="geometry" />
+        </mxCell>
+        <mxCell id="health" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;health.routes.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«modules/health/health.routes.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="260" x="730" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="health_a" parent="health" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="prisma" vertex="1">
+          <mxGeometry height="24" width="260" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="health_m" parent="health" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ healthRoutes: FastifyPluginAsync&lt;br/&gt;GET /health, GET /health/db" vertex="1">
+          <mxGeometry height="44" width="260" y="56" as="geometry" />
+        </mxCell>
+        <mxCell id="authsch" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;auth.schemas.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«modules/auth/auth.schemas.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="88" width="240" x="720" y="315" as="geometry" />
+        </mxCell>
+        <mxCell id="authsch_a" parent="authsch" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ loginBodySchema (Zod)" vertex="1">
+          <mxGeometry height="28" width="240" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="authsch_m" parent="authsch" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="—" vertex="1">
+          <mxGeometry height="28" width="240" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="authrt" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;auth.routes.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«modules/auth/auth.routes.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="260" x="800" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="authrt_a" parent="authrt" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="bcrypt, http, jwt, prisma, loginBodySchema" vertex="1">
+          <mxGeometry height="32" width="260" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="authrt_m" parent="authrt" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ authRoutes: FastifyPluginAsync&lt;br/&gt;POST /login, GET /me" vertex="1">
+          <mxGeometry height="36" width="260" y="64" as="geometry" />
+        </mxCell>
+        <mxCell id="prodsch" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;productos.schemas.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«catalogos/productos.schemas.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="260" x="2150" y="1960" as="geometry" />
+        </mxCell>
+        <mxCell id="prodsch_a" parent="prodsch" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ productoCrearSchema&lt;br/&gt;+ productoActualizarSchema" vertex="1">
+          <mxGeometry height="36" width="260" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="prodsch_m" parent="prodsch" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="—" vertex="1">
+          <mxGeometry height="32" width="260" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="prodsvc" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;productos.service.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«catalogos/productos.service.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="130" width="300" x="1100" y="940" as="geometry" />
+        </mxCell>
+        <mxCell id="prodsvc_a" parent="prodsvc" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="Product (Prisma), prisma" vertex="1">
+          <mxGeometry height="28" width="300" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="prodsvc_m" parent="prodsvc" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="+ listarCategoriasProductoActivas()&lt;br/&gt;+ findCategoriaProductoActiva(), generarCodigoProducto()&lt;br/&gt;+ mapProductoApi()" vertex="1">
+          <mxGeometry height="70" width="300" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="prodr" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#000000;" value="&lt;b&gt;productos.routes.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«catalogos/productos.routes.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="120" width="300" x="2130" y="1730" as="geometry" />
+        </mxCell>
+        <mxCell id="prodr_a" parent="prodr" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="catalog-put, http, prisma, schemas, service" vertex="1">
+          <mxGeometry height="32" width="300" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="prodr_m" parent="prodr" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ productosRoutes: FastifyPluginAsync&lt;br/&gt;GET/POST /, PUT/DELETE /:id" vertex="1">
+          <mxGeometry height="56" width="300" y="64" as="geometry" />
+        </mxCell>
+        <mxCell id="vensch" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;vendedores.schemas.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«catalogos/vendedores.schemas.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="260" x="1000" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="vensch_a" parent="vensch" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ vendedorBodySchema" vertex="1">
+          <mxGeometry height="28" width="260" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="vensch_m" parent="vensch" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="—" vertex="1">
+          <mxGeometry height="40" width="260" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="venr" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#000000;" value="&lt;b&gt;vendedores.routes.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«catalogos/vendedores.routes.ts»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="260" x="2540" y="955" as="geometry" />
+        </mxCell>
+        <mxCell id="venr_a" parent="venr" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="catalog-put, http, prisma, vendedorBodySchema" vertex="1">
+          <mxGeometry height="32" width="260" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="venr_m" parent="venr" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ vendedoresRoutes: FastifyPluginAsync" vertex="1">
+          <mxGeometry height="36" width="260" y="64" as="geometry" />
+        </mxCell>
+        <mxCell id="umsch" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;unidades-moviles.schemas.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«catalogos/...»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="280" x="1190" y="1760" as="geometry" />
+        </mxCell>
+        <mxCell id="umsch_a" parent="umsch" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ unidadMovilCrearSchema&lt;br/&gt;+ unidadMovilActualizarSchema" vertex="1">
+          <mxGeometry height="36" width="280" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="umsch_m" parent="umsch" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="—" vertex="1">
+          <mxGeometry height="32" width="280" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="umsvc" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;unidades-moviles.service.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«catalogos/...»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="140" width="320" x="1610" y="1740" as="geometry" />
+        </mxCell>
+        <mxCell id="umsvc_a" parent="umsvc" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="MobileUnitOperationalStatus (catalogo), prisma" vertex="1">
+          <mxGeometry height="28" width="320" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="umsvc_m" parent="umsvc" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="+ listarEstadosUnidadMovilActivos(), findEstadoUnidadMovilActivo()&lt;br/&gt;+ zonaDesdeDescripcion(), generarCodigoUnidadMovil()&lt;br/&gt;+ mapUnidadMovilApi(), actualizarAsignacionVigente()" vertex="1">
+          <mxGeometry height="80" width="320" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="umr" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#000000;" value="&lt;b&gt;unidades-moviles.routes.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«catalogos/...»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="120" width="300" x="1180" y="1480" as="geometry" />
+        </mxCell>
+        <mxCell id="umr_a" parent="umr" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=8;fontFamily=Courier New;" value="catalog-put, http, prisma, schemas, service" vertex="1">
+          <mxGeometry height="32" width="300" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="umr_m" parent="umr" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ unidadesMovilesRoutes: FastifyPluginAsync" vertex="1">
+          <mxGeometry height="56" width="300" y="64" as="geometry" />
+        </mxCell>
+        <mxCell id="umdr" parent="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#000000;" value="&lt;b&gt;unidades-medida.routes.ts&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;«catalogos/...»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="280" x="1030" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="umdr_a" parent="umdr" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=4;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="http, prisma" vertex="1">
+          <mxGeometry height="28" width="280" y="32" as="geometry" />
+        </mxCell>
+        <mxCell id="umdr_m" parent="umdr" style="text;strokeColor=#000000;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;overflow=hidden;html=1;fontSize=9;fontFamily=Courier New;" value="+ unidadesMedidaRoutes: FastifyPluginAsync&lt;br/&gt;GET /" vertex="1">
+          <mxGeometry height="40" width="280" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="idx" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="app">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="app" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="gate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="app" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="health">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="app" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="v1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="app" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="const">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="gate" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="const">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="gate" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="jwt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="v1" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="authrt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="v1" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prodr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="v1" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="venr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="v1" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="umr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="v1" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="umdr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="authrt" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="authsch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="authrt" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="http">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="authrt" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="jwt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="authrt" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prisma">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="health" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prisma">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="prodr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prodsch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="prodr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prodsvc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="prodr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="catput">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="1" source="prodr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="http">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" edge="1" parent="1" source="prodr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prisma">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="prodsvc" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prisma">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e24" edge="1" parent="1" source="venr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="vensch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e25" edge="1" parent="1" source="venr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="catput">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e26" edge="1" parent="1" source="venr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="http">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e27" edge="1" parent="1" source="venr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prisma">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e28" edge="1" parent="1" source="umr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="umsch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e29" edge="1" parent="1" source="umr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="umsvc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e30" edge="1" parent="1" source="umr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="catput">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e31" edge="1" parent="1" source="umr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="http">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e32" edge="1" parent="1" source="umr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prisma">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e33" edge="1" parent="1" source="umsvc" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prisma">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e34" edge="1" parent="1" source="umdr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="http">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e35" edge="1" parent="1" source="umdr" style="rounded=0;html=1;strokeColor=#333333;endArrow=none;startArrow=none;" target="prisma">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

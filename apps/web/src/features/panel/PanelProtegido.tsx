@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import {
+  IconClipboardList,
   IconLayoutDashboard,
   IconMoon,
   IconPackage,
@@ -10,31 +11,51 @@ import {
   IconSun,
   IconTruck,
   IconUsers,
+  IconWarehouse,
 } from "../../icons";
 import { API_V1_URL } from "../../shared/api/config";
 import { etiquetaRol, puedeCambiarActivoCatalogo, puedeCrearEditar } from "../../shared/permissions";
 import { parseSesion, SESSION_KEY, type Sesion } from "../../shared/session";
-import type { ModalEdicion, Paginacion, Producto, UnidadMedidaOpt, UnidadMovil, Vendedor } from "../../shared/types/catalogos";
+import type {
+  CategoriaProductoOpt,
+  EstadoUnidadMovilOpt,
+  ModalEdicion,
+  Paginacion,
+  Producto,
+  UnidadMedidaOpt,
+  UnidadMovil,
+  Vendedor,
+} from "../../shared/types/catalogos";
+import { FeedbackMessage, type FeedbackState } from "../../shared/ui/FeedbackMessage";
 import { useTheme } from "../../theme";
+import InventarioPage from "../inventario/InventarioPage";
+import AbastecimientoDiarioPage from "../operaciones/AbastecimientoDiarioPage";
 import { CampoActivoCatalogo } from "./CampoActivoCatalogo";
 
 const SIDEBAR_KEY = "fastfood_sidebar_collapsed";
 const LIMITE_PAGINA = 8;
 
-function etiquetaTipoProducto(tipo: Producto["tipo"]) {
-  if (tipo === "ALIMENTO") return "Alimento";
-  if (tipo === "BEBIDA") return "Bebida";
-  return "Insumo";
-}
-
-function etiquetaEstadoUnidad(estado: UnidadMovil["estado"]) {
-  if (estado === "ACTIVA") return "Activa";
-  if (estado === "MANTENIMIENTO") return "Mantenimiento";
-  return "Fuera de servicio";
-}
-
 function telefonoSoloDigitos(el: HTMLInputElement) {
   el.value = el.value.replace(/\D/g, "");
+}
+
+function fechaLocalYYYYMMDD(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Alineado con validación Zod en `unidades-moviles.schemas.ts`. */
+function validarFechasAsignacion(fechaIni: string, fechaFin: string): string | null {
+  if (fechaFin && !fechaIni) {
+    return "Si indicas fecha de fin de asignación, indica también la de inicio.";
+  }
+  if (fechaIni && fechaFin && fechaFin < fechaIni) {
+    return "La fecha fin de asignación no puede ser anterior a la de inicio.";
+  }
+  return null;
 }
 
 export function PanelProtegido() {
@@ -44,7 +65,11 @@ export function PanelProtegido() {
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [unidades, setUnidades] = useState<UnidadMovil[]>([]);
   const [unidadesMedida, setUnidadesMedida] = useState<UnidadMedidaOpt[]>([]);
-  const [mensaje, setMensaje] = useState("");
+  const [categoriasProducto, setCategoriasProducto] = useState<CategoriaProductoOpt[]>([]);
+  const [estadosUnidadMovil, setEstadosUnidadMovil] = useState<EstadoUnidadMovilOpt[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  /** Mensajes de validación / error solo del modal de edición (misma posición que el formulario). */
+  const [feedbackModal, setFeedbackModal] = useState<FeedbackState | null>(null);
   const [cargando, setCargando] = useState(false);
   const [sesion, setSesion] = useState<Sesion | null>(() => parseSesion(sessionStorage.getItem(SESSION_KEY)));
   const [ahora, setAhora] = useState(new Date());
@@ -75,6 +100,16 @@ export function PanelProtegido() {
   const [formKeyProducto, setFormKeyProducto] = useState(0);
   const [formKeyVendedor, setFormKeyVendedor] = useState(0);
   const [formKeyUnidad, setFormKeyUnidad] = useState(0);
+
+  function abrirModalEdicion(next: NonNullable<ModalEdicion>) {
+    setFeedbackModal(null);
+    setModalEdicion(next);
+  }
+
+  function cerrarModalEdicion() {
+    setFeedbackModal(null);
+    setModalEdicion(null);
+  }
 
   const pagProdRef = useRef(paginacionProductos);
   const pagVendRef = useRef(paginacionVendedores);
@@ -120,13 +155,22 @@ export function PanelProtegido() {
       const authH: Record<string, string> = {};
       const ses = parseSesion(sessionStorage.getItem(SESSION_KEY));
       if (ses?.token) authH.Authorization = `Bearer ${ses.token}`;
-      const [rProd, rVend, rUni, rUm] = await Promise.all([
+      const [rProd, rVend, rUni, rUm, rCat, rEst] = await Promise.all([
         fetch(`${API_V1_URL}/productos${qProd}`, { headers: authH }),
         fetch(`${API_V1_URL}/vendedores${qVend}`, { headers: authH }),
         fetch(`${API_V1_URL}/unidades-moviles${qUni}`, { headers: authH }),
         fetch(`${API_V1_URL}/unidades-medida`, { headers: authH }),
+        fetch(`${API_V1_URL}/productos/categorias`, { headers: authH }),
+        fetch(`${API_V1_URL}/unidades-moviles/estados`, { headers: authH }),
       ]);
-      if (rProd.status === 401 || rVend.status === 401 || rUni.status === 401 || rUm.status === 401) {
+      if (
+        rProd.status === 401 ||
+        rVend.status === 401 ||
+        rUni.status === 401 ||
+        rUm.status === 401 ||
+        rCat.status === 401 ||
+        rEst.status === 401
+      ) {
         sessionStorage.removeItem(SESSION_KEY);
         setSesion(null);
         navigate("/login", { replace: true });
@@ -136,27 +180,54 @@ export function PanelProtegido() {
       const jVend = await rVend.json();
       const jUni = await rUni.json();
       const jUm = await rUm.json();
+      const jCat = await rCat.json();
+      const jEst = await rEst.json();
       if (!rProd.ok) {
-        setMensaje(`Productos: ${String(jProd.error ?? jProd.message ?? rProd.status)}`);
+        setFeedback({
+          tipo: "error",
+          text: `Productos: ${String(jProd.error ?? jProd.message ?? rProd.status)}`,
+        });
         return;
       }
       if (!rVend.ok) {
-        setMensaje(`Vendedores: ${String(jVend.error ?? jVend.message ?? rVend.status)}`);
+        setFeedback({
+          tipo: "error",
+          text: `Vendedores: ${String(jVend.error ?? jVend.message ?? rVend.status)}`,
+        });
         return;
       }
       if (!rUni.ok) {
-        setMensaje(`Unidades: ${String(jUni.error ?? jUni.message ?? rUni.status)}`);
+        setFeedback({
+          tipo: "error",
+          text: `Unidades: ${String(jUni.error ?? jUni.message ?? rUni.status)}`,
+        });
+        return;
+      }
+      if (!rCat.ok) {
+        setFeedback({
+          tipo: "error",
+          text: `Categorías de producto: ${String(jCat.error ?? jCat.message ?? rCat.status)}`,
+        });
+        return;
+      }
+      if (!rEst.ok) {
+        setFeedback({
+          tipo: "error",
+          text: `Estados de unidad móvil: ${String(jEst.error ?? jEst.message ?? rEst.status)}`,
+        });
         return;
       }
       setProductos(jProd.data ?? []);
       setVendedores(jVend.data ?? []);
       setUnidades(jUni.data ?? []);
       if (jUm.ok && Array.isArray(jUm.data)) setUnidadesMedida(jUm.data);
+      if (jCat.ok && Array.isArray(jCat.data)) setCategoriasProducto(jCat.data as CategoriaProductoOpt[]);
+      if (jEst.ok && Array.isArray(jEst.data)) setEstadosUnidadMovil(jEst.data as EstadoUnidadMovilOpt[]);
       if (jProd.paginacion) setPaginacionProductos(jProd.paginacion);
       if (jVend.paginacion) setPaginacionVendedores(jVend.paginacion);
       if (jUni.paginacion) setPaginacionUnidades(jUni.paginacion);
     } catch {
-      setMensaje("No se pudo cargar datos. Verifica que backend este activo.");
+      setFeedback({ tipo: "error", text: "No se pudo cargar datos. Verifica que el backend esté activo." });
     } finally {
       setCargando(false);
     }
@@ -232,22 +303,27 @@ export function PanelProtegido() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const idUm = Number(form.get("idUnidadMedida"));
+    const idCat = Number(form.get("idCategoria"));
     if (!Number.isFinite(idUm) || idUm < 1) {
-      setMensaje("Selecciona una unidad de medida del catalogo.");
+      setFeedback({ tipo: "warning", text: "Selecciona una unidad de medida del catálogo." });
+      return;
+    }
+    if (!Number.isFinite(idCat) || idCat < 1) {
+      setFeedback({ tipo: "warning", text: "Selecciona una categoría de producto." });
       return;
     }
     const payload = {
       nombre: String(form.get("nombre") ?? "").trim(),
-      tipo: String(form.get("tipo") ?? "ALIMENTO"),
+      idCategoria: idCat,
       idUnidadMedida: idUm,
       activo: true,
     };
     const json = await pedir("/productos", "POST", payload);
     const creado = json.data as { codigo?: string } | undefined;
-    setMensaje(
+    setFeedback(
       json.ok
-        ? `Producto creado con codigo ${creado?.codigo ?? ""}.`
-        : `Error: ${json.error}`,
+        ? { tipo: "success", text: `Producto creado con código ${creado?.codigo ?? ""}.` }
+        : { tipo: "error", text: json.error ?? "No se pudo crear el producto." },
     );
     if (json.ok) {
       flushSync(() => {
@@ -267,7 +343,11 @@ export function PanelProtegido() {
       activo: true,
     };
     const json = await pedir("/vendedores", "POST", payload);
-    setMensaje(json.ok ? "Vendedor creado." : `Error: ${json.error}`);
+    setFeedback(
+      json.ok
+        ? { tipo: "success", text: "Vendedor creado." }
+        : { tipo: "error", text: json.error ?? "No se pudo crear el vendedor." },
+    );
     if (json.ok) {
       flushSync(() => {
         setFormKeyVendedor((k) => k + 1);
@@ -279,19 +359,49 @@ export function PanelProtegido() {
   async function crearUnidad(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const idVendedor = String(form.get("idVendedor") ?? "");
-    const payload = {
-      zona: String(form.get("zona") ?? "").trim(),
-      estado: String(form.get("estado") ?? "ACTIVA"),
-      idVendedor: idVendedor ? idVendedor : null,
+    const placa = String(form.get("placa") ?? "").trim();
+    const descripcion = String(form.get("descripcion") ?? "").trim();
+    const idVendedor = String(form.get("idVendedor") ?? "").trim();
+    const fechaIni = String(form.get("fechaInicioAsignacion") ?? "").trim();
+    const fechaFin = String(form.get("fechaFinAsignacion") ?? "").trim();
+    const idEst = Number(form.get("idEstadoOperativo"));
+    if (!placa) {
+      setFeedback({ tipo: "warning", text: "La placa del vehículo es obligatoria." });
+      return;
+    }
+    if (!Number.isFinite(idEst) || idEst < 1) {
+      setFeedback({ tipo: "warning", text: "Selecciona un estado operativo del catálogo." });
+      return;
+    }
+    if (idVendedor && !fechaIni) {
+      setFeedback({
+        tipo: "warning",
+        text: "Si asignas vendedor, indica la fecha de inicio de la asignación.",
+      });
+      return;
+    }
+    const msgFechas = validarFechasAsignacion(fechaIni, fechaFin);
+    if (msgFechas) {
+      setFeedback({ tipo: "warning", text: msgFechas });
+      return;
+    }
+    const payload: Record<string, unknown> = {
+      placa,
+      descripcion: descripcion || null,
+      idEstadoOperativo: idEst,
+      idVendedor: idVendedor || null,
       activo: true,
     };
+    if (idVendedor) {
+      payload.fechaInicioAsignacion = fechaIni;
+      if (fechaFin) payload.fechaFinAsignacion = fechaFin;
+    }
     const json = await pedir("/unidades-moviles", "POST", payload);
     const unidadCreada = json.data as { codigo?: string } | undefined;
-    setMensaje(
+    setFeedback(
       json.ok
-        ? `Unidad movil creada con codigo ${unidadCreada?.codigo ?? ""}.`
-        : `Error: ${json.error}`,
+        ? { tipo: "success", text: `Unidad móvil creada con código ${unidadCreada?.codigo ?? ""}.` }
+        : { tipo: "error", text: json.error ?? "No se pudo crear la unidad." },
     );
     if (json.ok) {
       flushSync(() => {
@@ -310,14 +420,19 @@ export function PanelProtegido() {
 
     if (modalEdicion.kind === "producto") {
       const idUm = Number(form.get("idUnidadMedida"));
+      const idCat = Number(form.get("idCategoria"));
       if (!Number.isFinite(idUm) || idUm < 1) {
-        setMensaje("Selecciona una unidad de medida del catalogo.");
+        setFeedbackModal({ tipo: "warning", text: "Selecciona una unidad de medida del catálogo." });
+        return;
+      }
+      if (!Number.isFinite(idCat) || idCat < 1) {
+        setFeedbackModal({ tipo: "warning", text: "Selecciona una categoría de producto." });
         return;
       }
       const activo = adminPuedeActivo ? form.get("activo") === "on" : modalEdicion.item.activo;
       json = await pedir(`/productos/${modalEdicion.item.id}`, "PUT", {
         nombre: String(form.get("nombre") ?? "").trim(),
-        tipo: String(form.get("tipo") ?? "ALIMENTO"),
+        idCategoria: idCat,
         idUnidadMedida: idUm,
         activo,
       });
@@ -330,20 +445,53 @@ export function PanelProtegido() {
         activo,
       });
     } else {
-      const idVendedor = String(form.get("idVendedor") ?? "");
+      const placa = String(form.get("placa") ?? "").trim();
+      const descripcion = String(form.get("descripcion") ?? "").trim();
+      const idVendedor = String(form.get("idVendedor") ?? "").trim();
+      const fechaIni = String(form.get("fechaInicioAsignacion") ?? "").trim();
+      const fechaFin = String(form.get("fechaFinAsignacion") ?? "").trim();
+      const idEst = Number(form.get("idEstadoOperativo"));
+      if (!placa) {
+        setFeedbackModal({ tipo: "warning", text: "La placa del vehículo es obligatoria." });
+        return;
+      }
+      if (!Number.isFinite(idEst) || idEst < 1) {
+        setFeedbackModal({ tipo: "warning", text: "Selecciona un estado operativo del catálogo." });
+        return;
+      }
+      if (idVendedor && !fechaIni) {
+        setFeedbackModal({
+          tipo: "warning",
+          text: "Si asignas vendedor, indica la fecha de inicio de la asignación.",
+        });
+        return;
+      }
+      const msgFechas = validarFechasAsignacion(fechaIni, fechaFin);
+      if (msgFechas) {
+        setFeedbackModal({ tipo: "warning", text: msgFechas });
+        return;
+      }
       const activo = adminPuedeActivo ? form.get("activo") === "on" : modalEdicion.item.activo;
-      json = await pedir(`/unidades-moviles/${modalEdicion.item.id}`, "PUT", {
-        zona: String(form.get("zona") ?? "").trim(),
-        estado: String(form.get("estado") ?? "ACTIVA"),
-        idVendedor: idVendedor ? idVendedor : null,
+      const body: Record<string, unknown> = {
+        placa,
+        descripcion: descripcion || null,
+        idEstadoOperativo: idEst,
+        idVendedor: idVendedor || null,
         activo,
-      });
+      };
+      if (idVendedor) {
+        body.fechaInicioAsignacion = fechaIni;
+        if (fechaFin) body.fechaFinAsignacion = fechaFin;
+      }
+      json = await pedir(`/unidades-moviles/${modalEdicion.item.id}`, "PUT", body);
     }
 
-    setMensaje(json.ok ? "Registro actualizado." : `Error: ${json.error}`);
     if (json.ok) {
-      setModalEdicion(null);
+      setFeedback({ tipo: "success", text: "Registro actualizado." });
+      cerrarModalEdicion();
       await cargarDatos();
+    } else {
+      setFeedbackModal({ tipo: "error", text: json.error ?? "No se pudo guardar." });
     }
   }
 
@@ -428,13 +576,24 @@ export function PanelProtegido() {
             <IconTruck className="sidebar-link-icon" />
             <span className="sidebar-label">Unidades</span>
           </NavLink>
+          <NavLink to="/inventario" className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}>
+            <IconWarehouse className="sidebar-link-icon" />
+            <span className="sidebar-label">Inventario</span>
+          </NavLink>
+          <NavLink
+            to="/abastecimiento"
+            className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}
+          >
+            <IconClipboardList className="sidebar-link-icon" />
+            <span className="sidebar-label">Abastecimiento</span>
+          </NavLink>
         </nav>
       </aside>
 
       <section className="content">
         <header className="topbar">
           <div>
-            <h2>Centro de operaciones de abastecimiento</h2>
+            <h2>Centro de operaciones</h2>
             <p className="topbar-meta">
               {sesion.nombreCompleto} ({sesion.nombreUsuario}) · {etiquetaRol(sesion.rol)}
             </p>
@@ -456,7 +615,7 @@ export function PanelProtegido() {
           </div>
         </header>
 
-        {mensaje ? <p className="message">{mensaje}</p> : null}
+        {!modalEdicion ? <FeedbackMessage feedback={feedback} /> : null}
 
         <Routes>
           <Route
@@ -464,11 +623,14 @@ export function PanelProtegido() {
             element={
               <article className="card">
                 <h2>Resumen ejecutivo</h2>
-                <p className="subtle">Vista consolidada del estado de productos, personal de venta y unidades moviles.</p>
+                <p className="subtle">
+                  Vista consolidada de productos, personal, unidades móviles e inventario del almacén central. Los
+                  indicadores reflejan la página actual de cada listado; use el menú lateral para administrar el detalle.
+                </p>
                 <section className="kpis">
                   <article><h3>{productos.length}</h3><p>Productos registrados</p></article>
                   <article><h3>{vendedores.length}</h3><p>Vendedores habilitados</p></article>
-                  <article><h3>{unidades.length}</h3><p>Unidades moviles operativas</p></article>
+                  <article><h3>{unidades.length}</h3><p>Unidades móviles en la página actual</p></article>
                 </section>
               </article>
             }
@@ -477,36 +639,77 @@ export function PanelProtegido() {
             path="/productos"
             element={
               <article className="card">
-                <h2>Gestion de productos</h2>
+                <h2>Gestión de productos</h2>
                 <p className="subtle">
                   Administra el catalogo comercial para abastecimiento y despacho. El codigo se genera en el servidor
-                  (secuencia P001, P002, …). La unidad de medida se elige del catalogo normalizado en base de datos.
+                  (secuencia P001, P002, …). Categoria y unidad de medida salen de catalogos en base de datos (nuevas
+                  categorias no requieren cambiar el codigo de la aplicacion).
                 </p>
                 {crearEditar ? (
-                  <form key={formKeyProducto} className="form-grid" onSubmit={crearProducto}>
-                    <input name="nombre" placeholder="Nombre" required />
-                    <select name="tipo" defaultValue="ALIMENTO">
-                      <option value="ALIMENTO">Alimento</option>
-                      <option value="BEBIDA">Bebida</option>
-                      <option value="INSUMO">Insumo</option>
-                    </select>
-                    <select
-                      name="idUnidadMedida"
-                      required
-                      defaultValue={unidadesMedida[0]?.id ?? ""}
-                      aria-label="Unidad de medida"
+                  <form key={formKeyProducto} className="form-grid form-jornada-nueva" onSubmit={crearProducto}>
+                    <h3 className="form-section-title" style={{ gridColumn: "1 / -1" }}>
+                      Nuevo producto
+                    </h3>
+                    <p className="subtle" style={{ gridColumn: "1 / -1", marginTop: 0 }}>
+                      Campos con <span className="req-mark">*</span> obligatorios. El código comercial lo asigna el sistema
+                      (P001, P002, …).
+                    </p>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-prod-nombre">
+                        Nombre <span className="req-mark">*</span>
+                      </label>
+                      <p className="form-field-hint">Denominación en catálogo, inventario y abastecimiento.</p>
+                      <input id="cat-prod-nombre" name="nombre" required />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-prod-categoria">
+                        Categoría <span className="req-mark">*</span>
+                      </label>
+                      <p className="form-field-hint">Clasificación comercial (catálogo en base de datos).</p>
+                      <select
+                        id="cat-prod-categoria"
+                        name="idCategoria"
+                        required
+                        defaultValue={categoriasProducto[0]?.id ?? ""}
+                      >
+                        {categoriasProducto.length === 0 ? (
+                          <option value="">Cargando categorías…</option>
+                        ) : (
+                          categoriasProducto.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nombre}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-prod-um">
+                        Unidad de medida <span className="req-mark">*</span>
+                      </label>
+                      <p className="form-field-hint">Cómo se cuantifica el producto (kg, unidad, etc.).</p>
+                      <select
+                        id="cat-prod-um"
+                        name="idUnidadMedida"
+                        required
+                        defaultValue={unidadesMedida[0]?.id ?? ""}
+                      >
+                        {unidadesMedida.length === 0 ? (
+                          <option value="">Cargando unidades…</option>
+                        ) : (
+                          unidadesMedida.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.nombre} ({u.codigo})
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+                    <button
+                      type="submit"
+                      style={{ gridColumn: "1 / -1" }}
+                      disabled={unidadesMedida.length === 0 || categoriasProducto.length === 0}
                     >
-                      {unidadesMedida.length === 0 ? (
-                        <option value="">Cargando unidades…</option>
-                      ) : (
-                        unidadesMedida.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.nombre} ({u.codigo})
-                          </option>
-                        ))
-                      )}
-                    </select>
-                    <button type="submit" disabled={unidadesMedida.length === 0}>
                       Crear producto
                     </button>
                   </form>
@@ -519,7 +722,7 @@ export function PanelProtegido() {
                       <tr>
                         <th>Codigo</th>
                         <th>Nombre</th>
-                        <th>Tipo</th>
+                        <th>Categoria</th>
                         <th>Unidad</th>
                         <th>Estado</th>
                         {crearEditar ? <th>Acciones</th> : null}
@@ -528,10 +731,10 @@ export function PanelProtegido() {
                     <tbody>
                       {productos.map((p) => (
                         <tr key={p.id} className={!p.activo ? "fila-catalogo-inactiva" : undefined}>
-                          <td>{p.codigo}</td><td>{p.nombre}</td><td>{etiquetaTipoProducto(p.tipo)}</td><td>{p.unidadMedida}</td><td>{p.activo ? "Activo" : "Inactivo"}</td>
+                          <td>{p.codigo}</td><td>{p.nombre}</td><td>{p.categoriaNombre}</td><td>{p.unidadMedida}</td><td>{p.activo ? "Activo" : "Inactivo"}</td>
                           {crearEditar ? (
                             <td className="row-actions">
-                              <button type="button" onClick={() => setModalEdicion({ kind: "producto", item: p })}>Editar</button>
+                              <button type="button" onClick={() => abrirModalEdicion({ kind: "producto", item: p })}>Editar</button>
                             </td>
                           ) : null}
                         </tr>
@@ -565,29 +768,57 @@ export function PanelProtegido() {
               </article>
             }
           />
+          <Route path="/inventario" element={<InventarioPage sesion={sesion} />} />
+          <Route path="/abastecimiento" element={<AbastecimientoDiarioPage sesion={sesion} />} />
           <Route
             path="/vendedores"
             element={
               <article className="card">
-                <h2>Gestion de vendedores</h2>
-                <p className="subtle">Mantiene el personal habilitado para operar unidades moviles.</p>
+                <h2>Gestión de vendedores</h2>
+                <p className="subtle">Mantiene el personal habilitado para operar unidades móviles.</p>
                 {crearEditar ? (
-                  <form key={formKeyVendedor} className="form-grid" onSubmit={crearVendedor}>
-                    <input name="nombreCompleto" placeholder="Nombre completo" required />
-                    <input name="documento" placeholder="Documento" required />
-                    <input
-                      name="telefono"
-                      placeholder="Telefono (solo numeros)"
-                      required
-                      inputMode="numeric"
-                      autoComplete="tel"
-                      pattern="[0-9]*"
-                      minLength={7}
-                      maxLength={15}
-                      title="Solo numeros, entre 7 y 15 digitos"
-                      onInput={(ev) => telefonoSoloDigitos(ev.currentTarget)}
-                    />
-                    <button type="submit">Crear vendedor</button>
+                  <form key={formKeyVendedor} className="form-grid form-jornada-nueva" onSubmit={crearVendedor}>
+                    <h3 className="form-section-title" style={{ gridColumn: "1 / -1" }}>
+                      Nuevo vendedor
+                    </h3>
+                    <p className="subtle" style={{ gridColumn: "1 / -1", marginTop: 0 }}>
+                      Campos con <span className="req-mark">*</span> obligatorios. El teléfono solo admite dígitos (7–15).
+                    </p>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-vend-nombre">
+                        Nombre completo <span className="req-mark">*</span>
+                      </label>
+                      <p className="form-field-hint">Identificación en listados y asignación a unidades.</p>
+                      <input id="cat-vend-nombre" name="nombreCompleto" required />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-vend-doc">
+                        Documento de identidad <span className="req-mark">*</span>
+                      </label>
+                      <p className="form-field-hint">CI u otro documento; debe ser único en el sistema.</p>
+                      <input id="cat-vend-doc" name="documento" required />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-vend-tel">
+                        Teléfono <span className="req-mark">*</span>
+                      </label>
+                      <p className="form-field-hint">Solo números, sin espacios ni guiones.</p>
+                      <input
+                        id="cat-vend-tel"
+                        name="telefono"
+                        required
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        pattern="[0-9]*"
+                        minLength={7}
+                        maxLength={15}
+                        title="Solo números, entre 7 y 15 dígitos"
+                        onInput={(ev) => telefonoSoloDigitos(ev.currentTarget)}
+                      />
+                    </div>
+                    <button type="submit" style={{ gridColumn: "1 / -1" }}>
+                      Crear vendedor
+                    </button>
                   </form>
                 ) : (
                   <p className="subtle">Tu rol solo permite consultar este catalogo.</p>
@@ -609,7 +840,7 @@ export function PanelProtegido() {
                           <td>{v.nombreCompleto}</td><td>{v.documento}</td><td>{v.telefono}</td><td>{v.activo ? "Activo" : "Inactivo"}</td>
                           {crearEditar ? (
                             <td className="row-actions">
-                              <button type="button" onClick={() => setModalEdicion({ kind: "vendedor", item: v })}>Editar</button>
+                              <button type="button" onClick={() => abrirModalEdicion({ kind: "vendedor", item: v })}>Editar</button>
                             </td>
                           ) : null}
                         </tr>
@@ -647,26 +878,89 @@ export function PanelProtegido() {
             path="/unidades"
             element={
               <article className="card">
-                <h2>Gestion de unidades moviles</h2>
+                <h2>Gestión de unidades móviles</h2>
                 <p className="subtle">
-                  Controla unidades activas, zonas de cobertura y asignaciones de vendedor. El codigo se asigna solo
-                  (secuencia UM-01, UM-02, …).
+                  La <strong>zona de operación</strong> de cada salida se elige al <strong>planificar la jornada</strong> en
+                  Abastecimiento (tabla <code>jornada</code>, <code>id_zona</code>). Aquí registras <strong>placa</strong>{" "}
+                  (obligatoria), descripción opcional, estado y vendedor. El código UM-01… lo asigna el sistema.
                 </p>
                 {crearEditar ? (
-                  <form key={formKeyUnidad} className="form-grid" onSubmit={crearUnidad}>
-                    <input name="zona" placeholder="Zona" required />
-                    <select name="estado" defaultValue="ACTIVA">
-                      <option value="ACTIVA">Activa</option>
-                      <option value="MANTENIMIENTO">Mantenimiento</option>
-                      <option value="FUERA_DE_SERVICIO">Fuera de servicio</option>
-                    </select>
-                    <select name="idVendedor" defaultValue="">
-                      <option value="">Sin vendedor</option>
-                      {vendedores.map((v) => (
-                        <option key={v.id} value={v.id}>{v.nombreCompleto}</option>
-                      ))}
-                    </select>
-                    <button type="submit">Crear unidad</button>
+                  <form key={formKeyUnidad} className="form-grid form-jornada-nueva" onSubmit={crearUnidad}>
+                    <h3 className="form-section-title" style={{ gridColumn: "1 / -1" }}>
+                      Nueva unidad móvil
+                    </h3>
+                    <p className="subtle" style={{ gridColumn: "1 / -1", marginTop: 0 }}>
+                      <span className="req-mark">*</span> obligatorio. Con vendedor: fecha de inicio obligatoria; fin
+                      opcional y no puede ser anterior al inicio.
+                    </p>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-uni-placa">
+                        Placa <span className="req-mark">*</span>
+                      </label>
+                      <p className="form-field-hint">Identificación vehicular del móvil (máx. 20 caracteres).</p>
+                      <input id="cat-uni-placa" name="placa" maxLength={20} required />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-uni-desc">Descripción</label>
+                      <p className="form-field-hint">Notas internas opcionales.</p>
+                      <input id="cat-uni-desc" name="descripcion" maxLength={255} />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-uni-estado">
+                        Estado operativo <span className="req-mark">*</span>
+                      </label>
+                      <p className="form-field-hint">Situación en calle (catálogo: disponible, mantenimiento, etc.).</p>
+                      <select
+                        id="cat-uni-estado"
+                        name="idEstadoOperativo"
+                        required
+                        defaultValue={estadosUnidadMovil[0]?.id ?? ""}
+                      >
+                        {estadosUnidadMovil.length === 0 ? (
+                          <option value="">Cargando estados…</option>
+                        ) : (
+                          estadosUnidadMovil.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.nombre}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-uni-vend">Vendedor asignado</label>
+                      <p className="form-field-hint">Opcional. Si eliges vendedor, completa al menos la fecha de inicio.</p>
+                      <select id="cat-uni-vend" name="idVendedor" defaultValue="">
+                        <option value="">Sin vendedor</option>
+                        {vendedores.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.nombreCompleto}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-uni-a-ini">Inicio asignación vendedor</label>
+                      <p className="form-field-hint">Obligatoria si hay vendedor.</p>
+                      <input
+                        id="cat-uni-a-ini"
+                        name="fechaInicioAsignacion"
+                        type="date"
+                        defaultValue={fechaLocalYYYYMMDD()}
+                      />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="cat-uni-a-fin">Fin asignación vendedor</label>
+                      <p className="form-field-hint">Opcional; vacío = vigente. No puede ser anterior al inicio.</p>
+                      <input id="cat-uni-a-fin" name="fechaFinAsignacion" type="date" />
+                    </div>
+                    <button
+                      type="submit"
+                      style={{ gridColumn: "1 / -1" }}
+                      disabled={estadosUnidadMovil.length === 0}
+                    >
+                      Crear unidad
+                    </button>
                   </form>
                 ) : (
                   <p className="subtle">Tu rol solo permite consultar este catalogo.</p>
@@ -676,7 +970,8 @@ export function PanelProtegido() {
                     <thead>
                       <tr>
                         <th>Codigo</th>
-                        <th>Zona</th>
+                        <th>Placa</th>
+                        <th>Descripción</th>
                         <th>Estado</th>
                         <th>Vendedor</th>
                         <th>Catálogo</th>
@@ -686,12 +981,15 @@ export function PanelProtegido() {
                     <tbody>
                       {unidades.map((u) => (
                         <tr key={u.id} className={!u.activo ? "fila-catalogo-inactiva" : undefined}>
-                          <td>{u.codigo}</td><td>{u.zona}</td><td>{etiquetaEstadoUnidad(u.estado)}</td>
+                          <td>{u.codigo}</td>
+                          <td>{u.placa}</td>
+                          <td className="subtle">{u.descripcion ?? "—"}</td>
+                          <td>{u.estadoNombre}</td>
                           <td>{u.idVendedor ? vendedores.find((v) => v.id === u.idVendedor)?.nombreCompleto ?? "Asignado" : "Sin vendedor"}</td>
                           <td>{u.activo ? "Activa" : "Inactiva"}</td>
                           {crearEditar ? (
                             <td className="row-actions">
-                              <button type="button" onClick={() => setModalEdicion({ kind: "unidad", item: u })}>Editar</button>
+                              <button type="button" onClick={() => abrirModalEdicion({ kind: "unidad", item: u })}>Editar</button>
                             </td>
                           ) : null}
                         </tr>
@@ -730,17 +1028,18 @@ export function PanelProtegido() {
       </section>
 
       {modalEdicion ? (
-        <section className="modal-overlay" onClick={() => setModalEdicion(null)}>
+        <section className="modal-overlay" onClick={cerrarModalEdicion}>
           <article className="modal-card" onClick={(e) => e.stopPropagation()}>
             <header className="modal-header">
               <h3>
                 {modalEdicion.kind === "producto" && "Editar producto"}
                 {modalEdicion.kind === "vendedor" && "Editar vendedor"}
-                {modalEdicion.kind === "unidad" && "Editar unidad movil"}
+                {modalEdicion.kind === "unidad" && "Editar unidad móvil"}
               </h3>
               <p className="modal-subtitle">Actualiza la informacion y guarda los cambios.</p>
             </header>
             <form
+              className="modal-form"
               key={
                 modalEdicion
                   ? `${modalEdicion.kind}-${modalEdicion.kind === "producto" ? modalEdicion.item.id : modalEdicion.kind === "vendedor" ? modalEdicion.item.id : modalEdicion.item.id}`
@@ -748,81 +1047,199 @@ export function PanelProtegido() {
               }
               onSubmit={guardarEdicion}
             >
-              <div className="modal-body">
+              <FeedbackMessage feedback={feedbackModal} className="modal-inline-feedback" />
+              <div className="modal-body modal-body--form-fields">
+                <p className="subtle" style={{ margin: 0, fontSize: "0.82rem" }}>
+                  <span className="req-mark">*</span> obligatorio. Los cambios se reflejan al guardar.
+                </p>
                 {modalEdicion.kind === "producto" ? (
                   <>
-                  <label className="subtle">Codigo</label>
-                  <input readOnly value={modalEdicion.item.codigo} className="input-readonly" aria-readonly="true" />
-                  <input name="nombre" defaultValue={modalEdicion.item.nombre} required />
-                  <select name="tipo" defaultValue={modalEdicion.item.tipo}>
-                    <option value="ALIMENTO">Alimento</option>
-                    <option value="BEBIDA">Bebida</option>
-                    <option value="INSUMO">Insumo</option>
-                  </select>
-                  <select
-                    name="idUnidadMedida"
-                    required
-                    defaultValue={String(modalEdicion.item.idUnidadMedida)}
-                    aria-label="Unidad de medida"
-                  >
-                    {unidadesMedida.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.nombre} ({u.codigo})
-                      </option>
-                    ))}
-                  </select>
-                  <CampoActivoCatalogo
-                    activo={modalEdicion.item.activo}
-                    puedeEditarEstado={puedeEditarEstadoCatalogo}
-                  />
+                    <div className="form-field-block">
+                      <label htmlFor="mod-prod-cod">Código</label>
+                      <p className="form-field-hint">Generado por el sistema; no editable.</p>
+                      <input
+                        id="mod-prod-cod"
+                        readOnly
+                        value={modalEdicion.item.codigo}
+                        className="input-readonly"
+                        aria-readonly="true"
+                      />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-prod-nombre">
+                        Nombre <span className="req-mark">*</span>
+                      </label>
+                      <input id="mod-prod-nombre" name="nombre" defaultValue={modalEdicion.item.nombre} required />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-prod-cat">
+                        Categoría <span className="req-mark">*</span>
+                      </label>
+                      <select
+                        id="mod-prod-cat"
+                        name="idCategoria"
+                        required
+                        defaultValue={String(modalEdicion.item.idCategoria)}
+                      >
+                        {categoriasProducto.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-prod-um">
+                        Unidad de medida <span className="req-mark">*</span>
+                      </label>
+                      <select
+                        id="mod-prod-um"
+                        name="idUnidadMedida"
+                        required
+                        defaultValue={String(modalEdicion.item.idUnidadMedida)}
+                      >
+                        {unidadesMedida.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.nombre} ({u.codigo})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <CampoActivoCatalogo
+                      activo={modalEdicion.item.activo}
+                      puedeEditarEstado={puedeEditarEstadoCatalogo}
+                    />
                   </>
                 ) : null}
                 {modalEdicion.kind === "vendedor" ? (
                   <>
-                  <input name="nombreCompleto" defaultValue={modalEdicion.item.nombreCompleto} required />
-                  <input name="documento" defaultValue={modalEdicion.item.documento} required />
-                  <input
-                    name="telefono"
-                    defaultValue={modalEdicion.item.telefono.replace(/\D/g, "")}
-                    required
-                    inputMode="numeric"
-                    autoComplete="tel"
-                    pattern="[0-9]*"
-                    minLength={7}
-                    maxLength={15}
-                    title="Solo numeros, entre 7 y 15 digitos"
-                    onInput={(ev) => telefonoSoloDigitos(ev.currentTarget)}
-                  />
-                  <CampoActivoCatalogo
-                    activo={modalEdicion.item.activo}
-                    puedeEditarEstado={puedeEditarEstadoCatalogo}
-                  />
+                    <div className="form-field-block">
+                      <label htmlFor="mod-vend-nombre">
+                        Nombre completo <span className="req-mark">*</span>
+                      </label>
+                      <input
+                        id="mod-vend-nombre"
+                        name="nombreCompleto"
+                        defaultValue={modalEdicion.item.nombreCompleto}
+                        required
+                      />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-vend-doc">
+                        Documento <span className="req-mark">*</span>
+                      </label>
+                      <input id="mod-vend-doc" name="documento" defaultValue={modalEdicion.item.documento} required />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-vend-tel">
+                        Teléfono <span className="req-mark">*</span>
+                      </label>
+                      <input
+                        id="mod-vend-tel"
+                        name="telefono"
+                        defaultValue={modalEdicion.item.telefono.replace(/\D/g, "")}
+                        required
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        pattern="[0-9]*"
+                        minLength={7}
+                        maxLength={15}
+                        title="Solo números, entre 7 y 15 dígitos"
+                        onInput={(ev) => telefonoSoloDigitos(ev.currentTarget)}
+                      />
+                    </div>
+                    <CampoActivoCatalogo
+                      activo={modalEdicion.item.activo}
+                      puedeEditarEstado={puedeEditarEstadoCatalogo}
+                    />
                   </>
                 ) : null}
                 {modalEdicion.kind === "unidad" ? (
                   <>
-                  <p className="subtle">
-                    Codigo asignado: <strong>{modalEdicion.item.codigo}</strong> (no se puede cambiar)
-                  </p>
-                  <input name="zona" defaultValue={modalEdicion.item.zona} required />
-                  <select name="estado" defaultValue={modalEdicion.item.estado}>
-                    <option value="ACTIVA">Activa</option>
-                    <option value="MANTENIMIENTO">Mantenimiento</option>
-                    <option value="FUERA_DE_SERVICIO">Fuera de servicio</option>
-                  </select>
-                  <select name="idVendedor" defaultValue={modalEdicion.item.idVendedor ?? ""}>
-                    <option value="">Sin vendedor</option>
-                    {vendedores.map((v) => <option key={v.id} value={v.id}>{v.nombreCompleto}</option>)}
-                  </select>
-                  <CampoActivoCatalogo
-                    activo={modalEdicion.item.activo}
-                    puedeEditarEstado={puedeEditarEstadoCatalogo}
-                  />
+                    <div className="form-field-block">
+                      <label>Código asignado</label>
+                      <p className="form-field-hint">
+                        <strong>{modalEdicion.item.codigo}</strong> — no se puede cambiar.
+                      </p>
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-uni-placa">
+                        Placa <span className="req-mark">*</span>
+                      </label>
+                      <input
+                        id="mod-uni-placa"
+                        name="placa"
+                        defaultValue={modalEdicion.item.placa}
+                        maxLength={20}
+                        required
+                      />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-uni-desc">Descripción</label>
+                      <input
+                        id="mod-uni-desc"
+                        name="descripcion"
+                        defaultValue={modalEdicion.item.descripcion ?? ""}
+                        maxLength={255}
+                      />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-uni-estado">
+                        Estado operativo <span className="req-mark">*</span>
+                      </label>
+                      <select
+                        id="mod-uni-estado"
+                        name="idEstadoOperativo"
+                        required
+                        defaultValue={String(modalEdicion.item.idEstadoOperativo)}
+                      >
+                        {estadosUnidadMovil.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-uni-vend">Vendedor</label>
+                      <p className="form-field-hint">Opcional. Con vendedor, fecha inicio obligatoria.</p>
+                      <select id="mod-uni-vend" name="idVendedor" defaultValue={modalEdicion.item.idVendedor ?? ""}>
+                        <option value="">Sin vendedor</option>
+                        {vendedores.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.nombreCompleto}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-uni-a-ini">Inicio asignación</label>
+                      <input
+                        id="mod-uni-a-ini"
+                        name="fechaInicioAsignacion"
+                        type="date"
+                        defaultValue={modalEdicion.item.asignacionFechaInicio ?? fechaLocalYYYYMMDD()}
+                      />
+                    </div>
+                    <div className="form-field-block">
+                      <label htmlFor="mod-uni-a-fin">Fin asignación</label>
+                      <p className="form-field-hint">Opcional; si la completas, no puede ser anterior a la fecha de inicio.</p>
+                      <input
+                        id="mod-uni-a-fin"
+                        name="fechaFinAsignacion"
+                        type="date"
+                        defaultValue={modalEdicion.item.asignacionFechaFin ?? ""}
+                      />
+                    </div>
+                    <CampoActivoCatalogo
+                      activo={modalEdicion.item.activo}
+                      puedeEditarEstado={puedeEditarEstadoCatalogo}
+                    />
                   </>
                 ) : null}
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn-secundario-modal" onClick={() => setModalEdicion(null)}>
+                <button type="button" className="btn-secundario-modal" onClick={cerrarModalEdicion}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn-primario-modal">

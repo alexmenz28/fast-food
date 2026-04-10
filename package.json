@@ -2,20 +2,27 @@
   "name": "fast-food-abastecimiento",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/@fastfood/*"
   ],
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
-    "dev:all": "concurrently -n backend,web -c blue,magenta \"npm run dev -w backend\" \"npm run dev -w web\"",
-    "dev:backend": "npm run dev -w backend",
+    "dev:all": "npm run build -w @fastfood/catalogos-core && concurrently -n backend,web -c blue,magenta \"npm run dev -w backend\" \"wait-on tcp:127.0.0.1:3000 -t 120000 && npm run dev -w web\"",
+    "dev:backend": "npm run build -w @fastfood/catalogos-core && npm run dev -w backend",
     "dev:web": "npm run dev -w web",
-    "build": "npm run build --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present"
+    "build": "npm run build -w @fastfood/catalogos-core && npm run build -w backend && npm run build -w web",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test -w backend && npm run test -w web",
+    "db:seed": "npm run db:seed -w backend",
+    "db:reset": "npm run db:reset -w backend",
+    "db:migrate": "npm run db:migrate -w backend",
+    "db:generate": "npm run db:generate -w backend"
   },
   "engines": {
     "node": ">=22"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "wait-on": "^8.0.3"
   }
 }

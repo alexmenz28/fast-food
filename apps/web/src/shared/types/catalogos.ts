@@ -4,11 +4,19 @@ export type UnidadMedidaOpt = {
   nombre: string;
 };
 
+/** Opciones del select de categorías (GET /v1/productos/categorias). */
+export type CategoriaProductoOpt = {
+  id: number;
+  nombre: string;
+};
+
 export type Producto = {
   id: string;
   codigo: string;
   nombre: string;
-  tipo: "ALIMENTO" | "BEBIDA" | "INSUMO";
+  /** FK a `categoria_producto`; el nombre legible viene en `categoriaNombre`. */
+  idCategoria: number;
+  categoriaNombre: string;
   idUnidadMedida: number;
   unidadMedida: string;
   activo: boolean;
@@ -22,12 +30,25 @@ export type Vendedor = {
   activo: boolean;
 };
 
+/** Opción de estado operativo (GET /v1/unidades-moviles/estados). */
+export type EstadoUnidadMovilOpt = {
+  id: number;
+  codigo: string;
+  nombre: string;
+};
+
 export type UnidadMovil = {
   id: string;
   codigo: string;
-  zona: string;
-  estado: "ACTIVA" | "MANTENIMIENTO" | "FUERA_DE_SERVICIO";
+  placa: string;
+  /** Notas internas (opcional). La zona operativa oficial de cada salida es la de la jornada (`idZona` en abastecimiento). */
+  descripcion: string | null;
+  idEstadoOperativo: number;
+  estadoCodigo: string;
+  estadoNombre: string;
   idVendedor: string | null;
+  asignacionFechaInicio: string | null;
+  asignacionFechaFin: string | null;
   activo: boolean;
 };
 

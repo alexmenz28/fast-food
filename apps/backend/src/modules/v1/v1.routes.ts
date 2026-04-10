@@ -4,10 +4,12 @@ import { productosRoutes } from "../catalogos/productos.routes.js";
 import { unidadesMedidaRoutes } from "../catalogos/unidades-medida.routes.js";
 import { unidadesMovilesRoutes } from "../catalogos/unidades-moviles.routes.js";
 import { vendedoresRoutes } from "../catalogos/vendedores.routes.js";
+import { inventarioRoutes } from "../inventario/inventario.routes.js";
+import { operacionesRoutes } from "../operaciones/operaciones.routes.js";
 
 /**
  * API versionada: todos los recursos bajo `/v1/...`.
- * Nuevos módulos del caso de estudio se registran aquí (p. ej. inventario, abastecimiento).
+ * Alcance: catálogos (Sprint 1), inventario central HU4, operaciones HU5 (jornadas + abastecimiento).
  */
 export const v1Routes: FastifyPluginAsync = async (app) => {
   await app.register(authRoutes, { prefix: "/auth" });
@@ -15,4 +17,6 @@ export const v1Routes: FastifyPluginAsync = async (app) => {
   await app.register(vendedoresRoutes, { prefix: "/vendedores" });
   await app.register(unidadesMovilesRoutes, { prefix: "/unidades-moviles" });
   await app.register(unidadesMedidaRoutes, { prefix: "/unidades-medida" });
+  await app.register(inventarioRoutes, { prefix: "/inventario" });
+  await app.register(operacionesRoutes);
 };

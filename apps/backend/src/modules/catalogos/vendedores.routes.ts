@@ -9,8 +9,8 @@ export const vendedoresRoutes: FastifyPluginAsync = async (app) => {
     const paginacion = parsearPaginacion(request.query, reply);
     if (!("pagina" in paginacion)) return paginacion;
     const [total, rows] = await Promise.all([
-      prisma.seller.count(),
-      prisma.seller.findMany({
+      prisma.vendedor.count(),
+      prisma.vendedor.findMany({
         skip: paginacion.skip,
         take: paginacion.take,
         orderBy: { createdAt: "desc" },
@@ -44,7 +44,7 @@ export const vendedoresRoutes: FastifyPluginAsync = async (app) => {
       return badRequest(reply, parsed.error.issues[0]?.message ?? "Datos inválidos.");
     }
     try {
-      const created = await prisma.seller.create({
+      const created = await prisma.vendedor.create({
         data: {
           fullName: parsed.data.nombreCompleto,
           identityDocument: parsed.data.documento,
@@ -80,7 +80,7 @@ export const vendedoresRoutes: FastifyPluginAsync = async (app) => {
       return badRequest(reply, parsed.error.issues[0]?.message ?? "Datos inválidos.");
     }
     try {
-      const existing = await prisma.seller.findUnique({ where: { id: params.id } });
+      const existing = await prisma.vendedor.findUnique({ where: { id: params.id } });
       if (!existing) {
         reply.code(404);
         return { ok: false, error: "Registro no encontrado." };
@@ -90,7 +90,7 @@ export const vendedoresRoutes: FastifyPluginAsync = async (app) => {
         parsed.data.activo,
         existing.isActive,
       );
-      const updated = await prisma.seller.update({
+      const updated = await prisma.vendedor.update({
         where: { id: params.id },
         data: {
           fullName: parsed.data.nombreCompleto,
@@ -123,7 +123,7 @@ export const vendedoresRoutes: FastifyPluginAsync = async (app) => {
       return params;
     }
     try {
-      const updated = await prisma.seller.update({
+      const updated = await prisma.vendedor.update({
         where: { id: params.id },
         data: { isActive: false },
       });

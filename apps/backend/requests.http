@@ -29,14 +29,18 @@ Authorization: Bearer {{login.response.body.data.token}}
 GET {{apiV1}}/unidades-medida
 Authorization: Bearer {{login.response.body.data.token}}
 
-### Crear producto (codigo lo genera el servidor; idUnidadMedida del GET anterior, ej. 1)
+### Categorías de producto activas (catálogo para selects; nuevas filas en BD sin tocar código)
+GET {{apiV1}}/productos/categorias
+Authorization: Bearer {{login.response.body.data.token}}
+
+### Crear producto (codigo lo genera el servidor; idCategoria e idUnidadMedida de los GET anteriores)
 POST {{apiV1}}/productos
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.data.token}}
 
 {
   "nombre": "Pan para lomito",
-  "tipo": "ALIMENTO",
+  "idCategoria": 1,
   "idUnidadMedida": 1,
   "activo": true
 }
@@ -61,14 +65,98 @@ Authorization: Bearer {{login.response.body.data.token}}
 GET {{apiV1}}/unidades-moviles
 Authorization: Bearer {{login.response.body.data.token}}
 
-### Crear unidad movil (codigo lo genera el servidor; idVendedor opcional UUID real)
+### Estados operativos de unidad movil (catalogo en BD; id para POST/PUT)
+GET {{apiV1}}/unidades-moviles/estados
+Authorization: Bearer {{login.response.body.data.token}}
+
+### Crear unidad movil (placa obligatoria; descripcion opcional; con idVendedor: fechaInicioAsignacion obligatoria; fechaFin >= fechaInicio; la zona va en POST /jornadas)
 POST {{apiV1}}/unidades-moviles
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.data.token}}
 
 {
-  "zona": "Centro",
-  "estado": "ACTIVA",
-  "idVendedor": "REEMPLAZAR_UUID_REAL",
+  "placa": "1234-ABC",
+  "descripcion": "Nota interna opcional",
+  "idEstadoOperativo": 1,
+  "idVendedor": "REEMPLAZAR_UUID_VENDEDOR",
+  "fechaInicioAsignacion": "2026-03-01",
+  "fechaFinAsignacion": null,
   "activo": true
 }
+
+### —— Inventario almacén central (HU4, Sprint 2) ——
+
+### Almacén por defecto (central)
+GET {{apiV1}}/inventario/almacen
+Authorization: Bearer {{login.response.body.data.token}}
+
+### Stock paginado (opcional ?idCategoria=1)
+GET {{apiV1}}/inventario/stock?pagina=1&limite=8
+Authorization: Bearer {{login.response.body.data.token}}
+
+### Registrar ingreso (idProducto = UUID de GET /productos)
+POST {{apiV1}}/inventario/ingresos
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.data.token}}
+
+{
+  "idProducto": "REEMPLAZAR_UUID_PRODUCTO",
+  "cantidad": 10,
+  "nota": "Compra proveedor demo"
+}
+
+### Actualizar cantidad mínima (alertas cuando stock < mínimo)
+PATCH {{apiV1}}/inventario/stock/REEMPLAZAR_UUID_PRODUCTO/minimo
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.data.token}}
+
+{
+  "cantidadMinima": 25
+}
+
+### —— Operaciones: jornadas y abastecimiento diario (HU5) ——
+
+### Zonas activas (para POST jornada)
+GET {{apiV1}}/zonas
+Authorization: Bearer {{login.response.body.data.token}}
+
+### Listar jornadas (opcional ?pendienteAbastecimiento=true)
+GET {{apiV1}}/jornadas?pagina=1&limite=8
+Authorization: Bearer {{login.response.body.data.token}}
+
+### Crear jornada (UUIDs reales de unidad, vendedor y zona del seed)
+POST {{apiV1}}/jornadas
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.data.token}}
+
+{
+  "idUnidad": "REEMPLAZAR_UUID_UNIDAD",
+  "idVendedor": "REEMPLAZAR_UUID_VENDEDOR",
+  "idZona": "REEMPLAZAR_UUID_ZONA",
+  "fechaOperacion": "2026-03-31",
+  "horaInicio": "20:00",
+  "horaFin": "03:00"
+}
+
+### Nota jornadas: horaInicio y horaFin obligatorias; ventana permitida 18:00–03:00 (turno nocturno caso de estudio).
+
+### Listar abastecimientos
+GET {{apiV1}}/abastecimientos?pagina=1&limite=8
+Authorization: Bearer {{login.response.body.data.token}}
+
+### Registrar abastecimiento (descuenta stock; jornada debe estar PLANIFICADA sin entrega previa)
+POST {{apiV1}}/abastecimientos
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.data.token}}
+
+{
+  "idJornada": "REEMPLAZAR_UUID_JORNADA",
+  "lineas": [
+    { "idProducto": "REEMPLAZAR_UUID_PRODUCTO", "cantidad": 5 }
+  ],
+  "nota": "Entrega previa a jornada nocturna"
+}
+
+### Detalle de abastecimiento
+GET {{apiV1}}/abastecimientos/REEMPLAZAR_UUID_ABASTECIMIENTO
+Authorization: Bearer {{login.response.body.data.token}}

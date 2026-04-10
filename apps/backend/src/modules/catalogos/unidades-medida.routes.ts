@@ -5,7 +5,7 @@ import { prisma } from "../../lib/prisma.js";
 export const unidadesMedidaRoutes: FastifyPluginAsync = async (app) => {
   app.get("/", async (_request, reply) => {
     try {
-      const rows = await prisma.measureUnit.findMany({
+      const rows = await prisma.unidadMedida.findMany({
         where: { isActive: true },
         orderBy: { name: "asc" },
         select: { id: true, code: true, name: true },

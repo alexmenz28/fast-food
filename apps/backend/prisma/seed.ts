@@ -1,55 +1,66 @@
-import { AuditAction, PrismaClient, JourneyStatus, MobileUnitStatus, MovementType, ReferenceType, SupplyStatus } from "@prisma/client";
+import { JourneyStatus, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { registrarAbastecimiento } from "../src/modules/operaciones/operaciones.service.js";
 
 const prisma = new PrismaClient();
 
+/** Hora @db.Time como Date UTC (solo HH:mm). */
+function hora(h: number, m: number): Date {
+  return new Date(Date.UTC(1970, 0, 1, h, m, 0, 0));
+}
+
+/** Fecha operación (solo día). */
+function fechaOp(y: number, mo: number, d: number): Date {
+  return new Date(Date.UTC(y, mo - 1, d, 12, 0, 0, 0));
+}
+
 /**
- * Elimina datos operativos y de catálogo en orden compatible con FKs.
- * Tras esto el seed vuelve a insertar solo los datos de prueba definidos aquí
- * (incluye roles, usuarios, categorías, unidades de medida UND/KG únicamente).
+ * Borra **todos** los datos de negocio en orden seguro (FKs), dejando la BD vacía de filas de aplicación.
+ * Después `main()` vuelve a crear roles, usuarios demo, catálogos, unidades con placa, jornadas de ejemplo, etc.
  */
 async function limpiarBaseDatos() {
   await prisma.$transaction(async (tx) => {
-    await tx.auditEvent.deleteMany();
-    await tx.returnDetail.deleteMany();
-    await tx.return.deleteMany();
-    await tx.supplyDetail.deleteMany();
-    await tx.supply.deleteMany();
-    await tx.stockMovement.deleteMany();
-    await tx.warehouseStock.deleteMany();
-    await tx.product.deleteMany();
-    await tx.journeyLocation.deleteMany();
-    await tx.journey.deleteMany();
-    await tx.unitSellerAssignment.deleteMany();
-    await tx.mobileUnit.deleteMany();
-    await tx.seller.deleteMany();
-    await tx.warehouse.deleteMany();
-    await tx.user.deleteMany();
-    await tx.measureUnit.deleteMany();
-    await tx.productCategory.deleteMany();
-    await tx.zone.deleteMany();
-    await tx.role.deleteMany();
+    await tx.eventoAuditoria.deleteMany();
+    await tx.detalleDevolucion.deleteMany();
+    await tx.devolucion.deleteMany();
+    await tx.detalleAbastecimiento.deleteMany();
+    await tx.abastecimiento.deleteMany();
+    await tx.movimientoInventario.deleteMany();
+    await tx.inventarioAlmacen.deleteMany();
+    await tx.producto.deleteMany();
+    await tx.ubicacionJornada.deleteMany();
+    await tx.jornada.deleteMany();
+    await tx.asignacionUnidadVendedor.deleteMany();
+    await tx.unidadMovil.deleteMany();
+    await tx.catalogoEstadoUnidadMovil.deleteMany();
+    await tx.vendedor.deleteMany();
+    await tx.almacen.deleteMany();
+    await tx.usuario.deleteMany();
+    await tx.unidadMedida.deleteMany();
+    await tx.categoriaProducto.deleteMany();
+    await tx.zona.deleteMany();
+    await tx.rol.deleteMany();
   });
 }
 
 async function main() {
-  console.log("Limpiando base de datos para volver a datos de prueba…");
+  console.log("Borrando datos existentes y recargando escenario de prueba (Release 1)…");
   await limpiarBaseDatos();
 
-  const roleAdmin = await prisma.role.create({
+  const roleAdmin = await prisma.rol.create({
     data: { name: "ADMINISTRADOR", description: "Control total del sistema" },
   });
-  const roleWarehouse = await prisma.role.create({
+  const roleWarehouse = await prisma.rol.create({
     data: { name: "ALMACEN", description: "Encargado de entregas y devoluciones" },
   });
-  const roleSupervisor = await prisma.role.create({
+  const roleSupervisor = await prisma.rol.create({
     data: { name: "SUPERVISOR", description: "Supervisión operativa" },
   });
 
   const demoPassword = process.env.SEED_DEMO_PASSWORD ?? "FastFood2026!";
   const passwordHash = await bcrypt.hash(demoPassword, 12);
 
-  const adminUser = await prisma.user.create({
+  await prisma.usuario.create({
     data: {
       roleId: roleAdmin.id,
       username: "ADMINISTRADOR",
@@ -58,7 +69,7 @@ async function main() {
       email: "admin@fastfood.bo",
     },
   });
-  const warehouseUser = await prisma.user.create({
+  await prisma.usuario.create({
     data: {
       roleId: roleWarehouse.id,
       username: "ALMACEN",
@@ -67,7 +78,7 @@ async function main() {
       email: "almacen@fastfood.bo",
     },
   });
-  await prisma.user.create({
+  await prisma.usuario.create({
     data: {
       roleId: roleSupervisor.id,
       username: "SUPERVISOR",
@@ -77,160 +88,185 @@ async function main() {
     },
   });
 
-  const categoryFood = await prisma.productCategory.create({
+  const categoryFood = await prisma.categoriaProducto.create({
     data: { name: "Alimentos" },
   });
-  const categoryDrink = await prisma.productCategory.create({
+  const categoryDrink = await prisma.categoriaProducto.create({
     data: { name: "Bebidas" },
   });
-  const categorySupply = await prisma.productCategory.create({
+  const categorySupply = await prisma.categoriaProducto.create({
     data: { name: "Insumos" },
   });
 
-  /** Catálogo cerrado: solo Unidad y Kilogramo (códigos UND, KG). */
-  const unitPiece = await prisma.measureUnit.create({
+  const unitPiece = await prisma.unidadMedida.create({
     data: { code: "UND", name: "Unidad", isActive: true },
   });
-  const unitKg = await prisma.measureUnit.create({
+  const unitKg = await prisma.unidadMedida.create({
     data: { code: "KG", name: "Kilogramo", isActive: true },
   });
 
   const sellers = await Promise.all([
-    prisma.seller.create({
+    prisma.vendedor.create({
       data: { identityDocument: "7845123", fullName: "Juan Perez", phone: "70011223" },
     }),
-    prisma.seller.create({
+    prisma.vendedor.create({
       data: { identityDocument: "6723419", fullName: "Maria Rojas", phone: "72133456" },
     }),
-  ]);
-
-  const units = await Promise.all([
-    prisma.mobileUnit.create({
-      data: { code: "UM-01", description: "Zona: Equipetrol", operationalStatus: MobileUnitStatus.ACTIVE },
-    }),
-    prisma.mobileUnit.create({
-      data: { code: "UM-02", description: "Zona: Zona Universitaria", operationalStatus: MobileUnitStatus.ACTIVE },
+    prisma.vendedor.create({
+      data: { identityDocument: "5918234", fullName: "Carlos Vega", phone: "73445566" },
     }),
   ]);
 
-  await prisma.unitSellerAssignment.createMany({
+  await prisma.zona.createMany({
     data: [
-      { unitId: units[0].id, sellerId: sellers[0].id, startDate: new Date("2026-03-01"), isCurrent: true },
-      { unitId: units[1].id, sellerId: sellers[1].id, startDate: new Date("2026-03-01"), isCurrent: true },
+      { name: "Equipetrol", description: "Zona norte", isActive: true },
+      { name: "Zona Universitaria", description: "Zona sur", isActive: true },
+      { name: "Centro", description: "Centro urbano", isActive: true },
     ],
   });
 
-  const zone = await prisma.zone.create({
-    data: { name: "Equipetrol", description: "Zona de alta demanda nocturna" },
+  await prisma.catalogoEstadoUnidadMovil.createMany({
+    data: [
+      { code: "ACTIVA", name: "Activa", sortOrder: 1, isActive: true },
+      { code: "MANTENIMIENTO", name: "Mantenimiento", sortOrder: 2, isActive: true },
+      { code: "FUERA_DE_SERVICIO", name: "Fuera de servicio", sortOrder: 3, isActive: true },
+    ],
+  });
+  const estadoActiva = await prisma.catalogoEstadoUnidadMovil.findUniqueOrThrow({
+    where: { code: "ACTIVA" },
+  });
+
+  const zonaEquipetrol = await prisma.zona.findFirstOrThrow({ where: { name: "Equipetrol" } });
+  const zonaUni = await prisma.zona.findFirstOrThrow({ where: { name: "Zona Universitaria" } });
+  const zonaCentro = await prisma.zona.findFirstOrThrow({ where: { name: "Centro" } });
+
+  const units = await Promise.all([
+    prisma.unidadMovil.create({
+      data: {
+        code: "UM-01",
+        plate: "3892-ABC",
+        description: "Food truck demo — cobertura norte (la zona por salida se elige al planificar la jornada)",
+        operationalStatusId: estadoActiva.id,
+      },
+    }),
+    prisma.unidadMovil.create({
+      data: {
+        code: "UM-02",
+        plate: "2104-XYZ",
+        description: null,
+        operationalStatusId: estadoActiva.id,
+      },
+    }),
+    prisma.unidadMovil.create({
+      data: {
+        code: "UM-03",
+        plate: "5520-CNT",
+        description: "Unidad centro",
+        operationalStatusId: estadoActiva.id,
+      },
+    }),
+  ]);
+
+  await prisma.asignacionUnidadVendedor.createMany({
+    data: [
+      { unitId: units[0].id, sellerId: sellers[0].id, startDate: new Date("2026-03-01"), isCurrent: true },
+      { unitId: units[1].id, sellerId: sellers[1].id, startDate: new Date("2026-03-01"), isCurrent: true },
+      { unitId: units[2].id, sellerId: sellers[2].id, startDate: new Date("2026-03-01"), isCurrent: true },
+    ],
   });
 
   const products = await Promise.all([
-    prisma.product.create({
+    prisma.producto.create({
       data: { code: "P001", name: "Pan de hamburguesa", categoryId: categoryFood.id, measureUnitId: unitPiece.id },
     }),
-    prisma.product.create({
+    prisma.producto.create({
       data: { code: "P002", name: "Carne para hamburguesa", categoryId: categoryFood.id, measureUnitId: unitKg.id },
     }),
-    prisma.product.create({
+    prisma.producto.create({
       data: { code: "P003", name: "Gaseosa", categoryId: categoryDrink.id, measureUnitId: unitPiece.id },
     }),
-    prisma.product.create({
+    prisma.producto.create({
       data: { code: "P004", name: "Servilletas", categoryId: categorySupply.id, measureUnitId: unitPiece.id },
     }),
   ]);
 
-  const warehouse = await prisma.warehouse.create({
+  const warehouse = await prisma.almacen.create({
     data: { code: "ALM-01", name: "Almacen Central", address: "Av. Central 123" },
   });
 
-  for (const product of products) {
-    await prisma.warehouseStock.create({
+  /** Stock inicial demo: P004 bajo mínimo para probar alertas (HU4). */
+  const stocks: { productId: string; currentQty: number; minimumQty: number }[] = [
+    { productId: products[0].id, currentQty: 100, minimumQty: 20 },
+    { productId: products[1].id, currentQty: 100, minimumQty: 20 },
+    { productId: products[2].id, currentQty: 100, minimumQty: 20 },
+    { productId: products[3].id, currentQty: 8, minimumQty: 25 },
+  ];
+
+  for (const s of stocks) {
+    await prisma.inventarioAlmacen.create({
       data: {
         warehouseId: warehouse.id,
-        productId: product.id,
-        currentQty: 100,
-        minimumQty: 20,
+        productId: s.productId,
+        currentQty: s.currentQty,
+        minimumQty: s.minimumQty,
       },
     });
   }
 
-  const journey = await prisma.journey.create({
+  const userAlmacen = await prisma.usuario.findFirstOrThrow({ where: { username: "ALMACEN" } });
+
+  await prisma.jornada.create({
     data: {
       unitId: units[0].id,
       sellerId: sellers[0].id,
-      zoneId: zone.id,
-      operationDate: new Date("2026-03-31"),
-      startTime: new Date("1970-01-01T18:00:00.000Z"),
-      endTime: new Date("1970-01-01T03:00:00.000Z"),
-      status: JourneyStatus.CLOSED,
+      zoneId: zonaEquipetrol.id,
+      operationDate: fechaOp(2026, 3, 28),
+      startTime: hora(20, 0),
+      endTime: hora(3, 0),
+      status: JourneyStatus.PLANNED,
     },
   });
 
-  await prisma.journeyLocation.create({
+  await prisma.jornada.create({
     data: {
-      journeyId: journey.id,
-      latitude: "-17.7833000",
-      longitude: "-63.1821000",
-      pointType: "INICIO",
-      timestamp: new Date(),
+      unitId: units[1].id,
+      sellerId: sellers[1].id,
+      zoneId: zonaUni.id,
+      operationDate: fechaOp(2026, 3, 29),
+      startTime: hora(21, 30),
+      endTime: hora(3, 0),
+      status: JourneyStatus.PLANNED,
     },
   });
 
-  const supply = await prisma.supply.create({
+  const jornadaConEntregaDemo = await prisma.jornada.create({
     data: {
-      journeyId: journey.id,
-      warehouseId: warehouse.id,
-      deliveredById: warehouseUser.id,
-      deliveredAt: new Date(),
-      status: SupplyStatus.CLOSED,
-      details: {
-        create: [
-          { productId: products[0].id, qtyGiven: 50 },
-          { productId: products[1].id, qtyGiven: 30 },
-        ],
-      },
+      unitId: units[2].id,
+      sellerId: sellers[2].id,
+      zoneId: zonaCentro.id,
+      operationDate: fechaOp(2026, 3, 25),
+      startTime: hora(19, 0),
+      endTime: hora(2, 30),
+      status: JourneyStatus.PLANNED,
     },
   });
 
-  const returned = await prisma.return.create({
-    data: {
-      supplyId: supply.id,
-      receivedById: warehouseUser.id,
-      returnedAt: new Date(),
-      details: {
-        create: [
-          { productId: products[0].id, qtyReturned: 8, qtyDamaged: 1 },
-          { productId: products[1].id, qtyReturned: 5, qtyDamaged: 0 },
-        ],
-      },
+  await registrarAbastecimiento(
+    prisma,
+    {
+      idJornada: jornadaConEntregaDemo.id,
+      lineas: [
+        { idProducto: products[0].id, cantidad: 12 },
+        { idProducto: products[2].id, cantidad: 8 },
+      ],
+      nota: "Demostración seed: entrega registrada automáticamente",
     },
-  });
+    userAlmacen.id,
+  );
 
-  await prisma.stockMovement.create({
-    data: {
-      warehouseId: warehouse.id,
-      productId: products[0].id,
-      userId: warehouseUser.id,
-      movementType: MovementType.OUT,
-      quantity: 50,
-      referenceType: ReferenceType.SUPPLY,
-      referenceId: supply.id,
-      note: "Entrega a unidad movil",
-    },
-  });
-
-  await prisma.auditEvent.create({
-    data: {
-      userId: adminUser.id,
-      entity: "SUPPLY",
-      recordId: supply.id,
-      action: AuditAction.CREATE,
-      afterData: { supplyId: supply.id, returnId: returned.id },
-      ip: "127.0.0.1",
-    },
-  });
-
-  console.log("Seed completado: base limpia, unidades de medida UND (Unidad) y KG (Kilogramo) solamente.");
+  console.log(
+    "Seed completado: 3 vendedores, 3 unidades móviles, 3 zonas, 3 jornadas (2 planificadas + 1 con abastecimiento demo), inventario actualizado.",
+  );
 }
 
 main()
